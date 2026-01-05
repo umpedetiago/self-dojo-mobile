@@ -1,0 +1,44 @@
+name: self_dojo_mobile
+description: "Self Dojo - App de desenvolvimento pessoal"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+
+  # State Management & DI
+  provider: ^6.1.2
+
+  # Navigation
+  go_router: ^14.6.2
+
+  # Firebase
+  firebase_core: ^3.15.2
+  firebase_auth: ^5.3.4
+
+  # Utils
+  equatable: ^2.0.7
+  cloud_firestore: ^5.6.12
+  firebase_storage: ^12.4.10
+  image_picker: ^1.2.1
+  uuid: ^4.5.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
