@@ -1,7 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:self_dojo_mobile/core/utils/result.dart';
+import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
 import 'package:self_dojo_mobile/data/services/firebase_auth_service.dart';
+import 'package:self_dojo_mobile/domain/models/academy/user_role.dart';
+import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
 import 'package:self_dojo_mobile/domain/models/user.dart';
+import 'package:self_dojo_mobile/domain/models/user_profile.dart';
 
 /// Repository de autenticação
 /// Fonte única da verdade para autenticação
@@ -23,6 +27,8 @@ abstract class AuthRepository {
     required String email,
     required String password,
     String? displayName,
+    UserRole role = UserRole.student,
+    MartialArtType? martialArtType,
   });
 
   /// Envia email para redefinir senha
@@ -34,10 +40,14 @@ abstract class AuthRepository {
 
 /// Implementação do AuthRepository usando Firebase
 class AuthRepositoryImpl implements AuthRepository {
-  AuthRepositoryImpl({required FirebaseAuthService authService})
-      : _authService = authService;
+  AuthRepositoryImpl({
+    required FirebaseAuthService authService,
+    required ProfileRepository profileRepository,
+  })  : _authService = authService,
+        _profileRepository = profileRepository;
 
   final FirebaseAuthService _authService;
+  final ProfileRepository _profileRepository;
 
   @override
   Stream<AppUser?> get authStateChanges {
@@ -82,6 +92,8 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String password,
     String? displayName,
+    UserRole role = UserRole.student,
+    MartialArtType? martialArtType,
   }) async {
     try {
       await _authService.createUserWithEmailAndPassword(
@@ -104,6 +116,17 @@ class AuthRepositoryImpl implements AuthRepository {
           const Failure(message: 'Falha ao criar conta', code: 'unknown'),
         );
       }
+
+      // Cria o perfil inicial com o role e modalidade selecionados
+      final initialProfile = UserProfile(
+        id: user.id,
+        email: email,
+        displayName: displayName,
+        role: role,
+        martialArtType: martialArtType ?? MartialArtType.jiuJitsu,
+        createdAt: DateTime.now(),
+      );
+      await _profileRepository.saveProfile(initialProfile);
 
       return Result.success(user.copyWith(displayName: displayName));
     } on FirebaseAuthException catch (e) {

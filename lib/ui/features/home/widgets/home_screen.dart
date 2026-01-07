@@ -184,6 +184,9 @@ class _HomeContent extends StatelessWidget {
       );
 
   Widget _buildQuickActions(BuildContext context, UserProfile profile) {
+    // Verifica se tem academia (owner ou tem academyId)
+    final hasAcademy = profile.isOwner || (profile.academyId != null && profile.academyId!.isNotEmpty);
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -191,14 +194,11 @@ class _HomeContent extends StatelessWidget {
           Expanded(
             child: _buildQuickActionButton(
               icon: Icons.business,
-              label: profile.isOwner ? 'Minha Academia' : 'Criar Academia',
+              label: hasAcademy ? 'Minha Academia' : 'Criar Academia',
               color: AppColors.primary,
               onTap: () {
-                if (profile.isOwner) {
-                  context.push('/academy/manage');
-                } else {
-                  context.push('/academy/create');
-                }
+                // Sempre tenta ir para manage primeiro, se não tiver academia redireciona
+                context.push('/academy/manage');
               },
             ),
           ),

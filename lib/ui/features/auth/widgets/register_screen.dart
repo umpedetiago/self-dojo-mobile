@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
 import 'package:self_dojo_mobile/data/repositories/auth_repository.dart';
+import 'package:self_dojo_mobile/domain/models/academy/user_role.dart';
+import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
 import 'package:self_dojo_mobile/ui/features/auth/view_models/register_viewmodel.dart';
 import 'package:self_dojo_mobile/ui/features/auth/widgets/auth_text_field.dart';
 
@@ -87,7 +89,18 @@ class _RegisterContentState extends State<_RegisterContent> {
                       // Header
                       _buildHeader(),
 
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 24),
+
+                      // Seleção de Role
+                      _buildRoleSelector(viewModel),
+
+                      const SizedBox(height: 24),
+
+                      // Seleção de Modalidade (apenas se não for owner)
+                      if (viewModel.isMartialArtRequired) ...[
+                        _buildMartialArtSelector(viewModel),
+                        const SizedBox(height: 24),
+                      ],
 
                       // Formulário
                       _buildForm(viewModel),
@@ -164,6 +177,123 @@ class _RegisterContentState extends State<_RegisterContent> {
           style: TextStyle(
             fontSize: 16,
             color: AppColors.textSecondaryDark.withValues(alpha: 0.8),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoleSelector(RegisterViewModel viewModel) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Eu sou:',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimaryDark.withValues(alpha: 0.9),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: RegisterViewModel.availableRoles.map((role) {
+            final isSelected = viewModel.selectedRole == role;
+            return _RoleChip(
+              role: role,
+              isSelected: isSelected,
+              onTap: () => viewModel.setSelectedRole(role),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMartialArtSelector(RegisterViewModel viewModel) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Modalidade:',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimaryDark.withValues(alpha: 0.9),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariantDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: viewModel.selectedMartialArt == null
+                  ? AppColors.textTertiaryDark.withValues(alpha: 0.3)
+                  : AppColors.primary.withValues(alpha: 0.5),
+              width: 1.5,
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<MartialArtType>(
+              value: viewModel.selectedMartialArt,
+              hint: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.sports_martial_arts,
+                      color: AppColors.textTertiaryDark.withValues(alpha: 0.6),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Selecione sua modalidade',
+                      style: TextStyle(
+                        color: AppColors.textTertiaryDark.withValues(alpha: 0.6),
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              isExpanded: true,
+              icon: Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.textSecondaryDark.withValues(alpha: 0.7),
+                ),
+              ),
+              dropdownColor: AppColors.surfaceDark,
+              borderRadius: BorderRadius.circular(12),
+              style: const TextStyle(
+                color: AppColors.textPrimaryDark,
+                fontSize: 15,
+              ),
+              items: RegisterViewModel.availableMartialArts.map((art) {
+                return DropdownMenuItem<MartialArtType>(
+                  value: art.type,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          art.icon,
+                          color: art.primaryColor,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(art.name),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) => viewModel.setSelectedMartialArt(value),
+            ),
           ),
         ),
       ],
@@ -419,6 +549,88 @@ class _RegisterContentState extends State<_RegisterContent> {
           // Erro já é mostrado no widget de erro
         },
       );
+    }
+  }
+}
+
+/// Chip de seleção de role
+class _RoleChip extends StatelessWidget {
+  const _RoleChip({
+    required this.role,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final UserRole role;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: isSelected ? AppColors.primaryGradient : null,
+          color: isSelected ? null : AppColors.surfaceVariantDark,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? Colors.transparent
+                : AppColors.textTertiaryDark.withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _getIconForRole(role),
+              size: 20,
+              color: isSelected
+                  ? Colors.white
+                  : AppColors.textSecondaryDark.withValues(alpha: 0.8),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              role.displayName,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected
+                    ? Colors.white
+                    : AppColors.textSecondaryDark.withValues(alpha: 0.9),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getIconForRole(UserRole role) {
+    switch (role) {
+      case UserRole.student:
+        return Icons.school_outlined;
+      case UserRole.instructor:
+        return Icons.sports_martial_arts;
+      case UserRole.teacher:
+        return Icons.person_outline;
+      case UserRole.modalityMaster:
+        return Icons.workspace_premium_outlined;
+      case UserRole.owner:
+        return Icons.business_outlined;
     }
   }
 }

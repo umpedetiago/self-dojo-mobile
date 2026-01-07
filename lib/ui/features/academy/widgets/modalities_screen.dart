@@ -64,17 +64,19 @@ class _ModalitiesContent extends StatelessWidget {
             children: [
               _buildAppBar(context, viewModel),
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(20),
-                  itemCount: modalities.length,
-                  itemBuilder: (context, index) {
-                    return _buildModalityCard(
-                      context,
-                      modalities[index],
-                      viewModel,
-                    );
-                  },
-                ),
+                child: modalities.isEmpty
+                    ? _buildEmptyState(context, viewModel)
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(20),
+                        itemCount: modalities.length,
+                        itemBuilder: (context, index) {
+                          return _buildModalityCard(
+                            context,
+                            modalities[index],
+                            viewModel,
+                          );
+                        },
+                      ),
               ),
             ],
           ),
@@ -91,6 +93,55 @@ class _ModalitiesContent extends StatelessWidget {
               ),
             )
           : null,
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, AcademyViewModel viewModel) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.sports_martial_arts,
+              size: 80,
+              color: AppColors.textTertiaryDark,
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Nenhuma modalidade',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimaryDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Adicione as artes marciais\nque sua academia oferece',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondaryDark,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () => _showAddModalityDialog(context, viewModel),
+              icon: const Icon(Icons.add),
+              label: const Text('Adicionar Modalidade'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

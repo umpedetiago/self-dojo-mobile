@@ -20,14 +20,15 @@ dependencies:
   # Navigation
   go_router: ^14.6.2
 
-  # Firebase
+  # Firebase (only Auth)
   firebase_core: ^3.15.2
   firebase_auth: ^5.3.4
 
+  # Supabase (Database & Storage)
+  supabase_flutter: ^2.8.4
+
   # Utils
   equatable: ^2.0.7
-  cloud_firestore: ^5.6.12
-  firebase_storage: ^12.4.10
   image_picker: ^1.2.1
   uuid: ^4.5.2
 

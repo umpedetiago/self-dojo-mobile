@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:self_dojo_mobile/core/ui/commands/command.dart';
 import 'package:self_dojo_mobile/core/utils/result.dart';
 import 'package:self_dojo_mobile/data/repositories/auth_repository.dart';
+import 'package:self_dojo_mobile/domain/models/academy/user_role.dart';
+import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
 import 'package:self_dojo_mobile/domain/models/user.dart';
 
 /// ViewModel da tela de Cadastro
@@ -38,6 +40,25 @@ class RegisterViewModel extends ChangeNotifier {
   bool _acceptedTerms = false;
   bool get acceptedTerms => _acceptedTerms;
 
+  // Role selecionado
+  UserRole _selectedRole = UserRole.student;
+  UserRole get selectedRole => _selectedRole;
+
+  /// Roles disponíveis para seleção no cadastro
+  static const List<UserRole> availableRoles = [
+    UserRole.student,
+    UserRole.instructor,
+    UserRole.teacher,
+    UserRole.owner,
+  ];
+
+  // Modalidade selecionada
+  MartialArtType? _selectedMartialArt;
+  MartialArtType? get selectedMartialArt => _selectedMartialArt;
+
+  /// Modalidades disponíveis para seleção no cadastro
+  static List<MartialArt> get availableMartialArts => MartialArtsConfig.all;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
@@ -53,11 +74,18 @@ class RegisterViewModel extends ChangeNotifier {
   bool get isConfirmPasswordValid =>
       _confirmPassword.isNotEmpty && _confirmPassword == _password;
 
+  /// Verifica se a modalidade é obrigatória (não é para owners que criam academia)
+  bool get isMartialArtRequired => _selectedRole != UserRole.owner;
+
+  /// Verifica se a modalidade foi selecionada (quando obrigatória)
+  bool get isMartialArtValid => !isMartialArtRequired || _selectedMartialArt != null;
+
   bool get isFormValid =>
       isNameValid &&
       isEmailValid &&
       isPasswordValid &&
       isConfirmPasswordValid &&
+      isMartialArtValid &&
       _acceptedTerms;
 
   String? get passwordError {
@@ -112,6 +140,20 @@ class RegisterViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setSelectedRole(UserRole role) {
+    _selectedRole = role;
+    // Se mudou para owner, limpa a modalidade (owner cria academia depois)
+    if (role == UserRole.owner) {
+      _selectedMartialArt = null;
+    }
+    notifyListeners();
+  }
+
+  void setSelectedMartialArt(MartialArtType? type) {
+    _selectedMartialArt = type;
+    notifyListeners();
+  }
+
   void clearError() {
     _errorMessage = null;
     notifyListeners();
@@ -131,6 +173,8 @@ class RegisterViewModel extends ChangeNotifier {
       email: _email,
       password: _password,
       displayName: _name.trim(),
+      role: _selectedRole,
+      martialArtType: _selectedMartialArt,
     );
 
     result.fold(

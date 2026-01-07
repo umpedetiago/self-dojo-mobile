@@ -22,7 +22,7 @@ class UserProfile extends Equatable {
     this.paymentStatus,
     this.paymentDueDate,
     // Campos legados (para usuários sem academia)
-    this.martialArtType = MartialArtType.jiuJitsu,
+    this.martialArtType,  // Selecionado no cadastro
     this.graduation,
     this.graduationHistory = const [],
     this.academyName,
@@ -82,8 +82,8 @@ class UserProfile extends Equatable {
   // CAMPOS LEGADOS (usuários sem academia)
   // ============================================
 
-  /// Tipo de arte marcial praticada (legado)
-  final MartialArtType martialArtType;
+  /// Tipo de arte marcial praticada (selecionado no cadastro)
+  final MartialArtType? martialArtType;
 
   /// Graduação atual (legado - para usuários sem academia)
   final UserGraduation? graduation;
@@ -152,7 +152,10 @@ class UserProfile extends Equatable {
     if (enrolledModalities.isNotEmpty) {
       return enrolledModalities.first.martialArt;
     }
-    return MartialArtsConfig.getByType(martialArtType);
+    if (martialArtType == null) {
+      return MartialArtsConfig.defaultArt;
+    }
+    return MartialArtsConfig.getByType(martialArtType!);
   }
 
   /// Retorna a faixa atual (para exibição principal)
@@ -243,7 +246,7 @@ class UserProfile extends Equatable {
       'paymentStatus': paymentStatus?.name,
       'paymentDueDate': paymentDueDate?.toIso8601String(),
       // Legado
-      'martialArtType': martialArtType.name,
+      'martialArtType': martialArtType?.name,
       'graduation': graduation?.toMap(),
       'graduationHistory': graduationHistory.map((g) => g.toMap()).toList(),
       'academyName': academyName,
@@ -300,10 +303,12 @@ class UserProfile extends Equatable {
           ? DateTime.parse(map['paymentDueDate'] as String)
           : null,
       // Legado
-      martialArtType: MartialArtType.values.firstWhere(
-        (t) => t.name == map['martialArtType'],
-        orElse: () => MartialArtType.jiuJitsu,
-      ),
+      martialArtType: map['martialArtType'] != null
+          ? MartialArtType.values.firstWhere(
+              (t) => t.name == map['martialArtType'],
+              orElse: () => MartialArtType.jiuJitsu,
+            )
+          : null,
       graduation: map['graduation'] != null
           ? UserGraduation.fromMap(map['graduation'] as Map<String, dynamic>)
           : null,

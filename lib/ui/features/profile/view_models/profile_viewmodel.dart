@@ -45,7 +45,7 @@ class ProfileViewModel extends ChangeNotifier {
     // Escuta mudanças no perfil
     _profileSubscription = _profileRepository.watchProfile(_userId).listen(
       (profile) {
-        if (profile != null) {
+        if (profile != null && profile.email.isNotEmpty) {
           _profile = profile;
           _isLoading = false;
           _error = null;
@@ -64,15 +64,18 @@ class ProfileViewModel extends ChangeNotifier {
   }
 
   Future<void> _createInitialProfile() async {
-    final result = await _profileRepository.createProfile(
-      userId: _userId,
+    final initialProfile = UserProfile(
+      id: _userId,
       email: _authUser?.email ?? 'user@email.com',
       displayName: _authUser?.displayName,
+      photoUrl: _authUser?.photoUrl,
     );
 
+    final result = await _profileRepository.saveProfile(initialProfile);
+
     result.fold(
-      onSuccess: (profile) {
-        _profile = profile;
+      onSuccess: (_) {
+        _profile = initialProfile;
         _isLoading = false;
       },
       onFailure: (failure) {
@@ -86,10 +89,7 @@ class ProfileViewModel extends ChangeNotifier {
 
   /// Atualiza a foto de perfil
   Future<Result<String>> _updatePhoto(File photo) async {
-    final result = await _profileRepository.updateProfilePhoto(
-      userId: _userId,
-      photo: photo,
-    );
+    final result = await _profileRepository.uploadProfileImage(_userId, photo);
 
     result.fold(
       onSuccess: (url) {
@@ -105,11 +105,6 @@ class ProfileViewModel extends ChangeNotifier {
   /// Atualiza o perfil
   Future<Result<void>> _updateProfile(UserProfile newProfile) async {
     return _profileRepository.updateProfile(newProfile);
-  }
-
-  /// Registra uma aula (check-in)
-  Future<Result<void>> registerClass() async {
-    return _profileRepository.registerClass(_userId);
   }
 
   /// Muda a arte marcial
@@ -133,4 +128,3 @@ class ProfileViewModel extends ChangeNotifier {
     super.dispose();
   }
 }
-

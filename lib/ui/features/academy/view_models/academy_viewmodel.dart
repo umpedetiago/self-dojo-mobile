@@ -134,15 +134,30 @@ class AcademyViewModel extends ChangeNotifier {
         _academy = academy;
         _watchAcademy(academy.id);
 
-        // Atualiza o perfil do usuário para owner
-        await _profileRepository.updateProfile(
-          UserProfile(
-            id: _userId,
-            email: params.email ?? '',
-            role: UserRole.owner,
-            academyId: academy.id,
-            academyStatus: AcademyStatus.approved,
-          ),
+        // Busca o perfil atual
+        final profileResult = await _profileRepository.getProfile(_userId);
+        await profileResult.fold(
+          onSuccess: (currentProfile) async {
+            // Atualiza o perfil do usuário para owner mantendo outros dados
+            final updatedProfile = currentProfile.copyWith(
+              role: UserRole.owner,
+              academyId: academy.id,
+              academyStatus: AcademyStatus.approved,
+            );
+            await _profileRepository.updateProfile(updatedProfile);
+          },
+          onFailure: (_) async {
+            // Se não encontrou perfil, cria um novo
+            await _profileRepository.saveProfile(
+              UserProfile(
+                id: _userId,
+                email: params.email ?? '',
+                role: UserRole.owner,
+                academyId: academy.id,
+                academyStatus: AcademyStatus.approved,
+              ),
+            );
+          },
         );
       },
       onFailure: (_) {},

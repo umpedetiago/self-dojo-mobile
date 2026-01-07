@@ -1,0 +1,176 @@
+import 'dart:io';
+import 'package:self_dojo_mobile/core/utils/result.dart';
+import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
+import 'package:self_dojo_mobile/data/services/supabase_service.dart';
+import 'package:self_dojo_mobile/domain/models/academy/user_role.dart';
+import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
+import 'package:self_dojo_mobile/domain/models/user_profile.dart';
+import 'package:self_dojo_mobile/domain/models/martial_arts/belt.dart';
+
+/// Implementação do ProfileRepository usando Supabase
+class ProfileRepositorySupabase implements ProfileRepository {
+  ProfileRepositorySupabase({
+    required SupabaseService supabaseService,
+  }) : _supabaseService = supabaseService;
+
+  final SupabaseService _supabaseService;
+
+  @override
+  Future<Result<UserProfile>> getProfile(String firebaseUid) async {
+    try {
+      final data = await _supabaseService.getUserByFirebaseUid(firebaseUid);
+
+      if (data == null) {
+        // Retorna perfil vazio para usuário novo
+        return Result.success(UserProfile(
+          id: firebaseUid,
+          email: '',
+        ));
+      }
+
+      final profile = _mapToProfile(data);
+      return Result.success(profile);
+    } catch (e) {
+      return Result.failure(Failure(message: 'Erro ao buscar perfil: $e'));
+    }
+  }
+
+  @override
+  Future<Result<void>> saveProfile(UserProfile profile) async {
+    try {
+      await _supabaseService.upsertUser(_profileToMap(profile));
+      return Result.success(null);
+    } catch (e) {
+      return Result.failure(Failure(message: 'Erro ao salvar perfil: $e'));
+    }
+  }
+
+  @override
+  Future<Result<void>> updateProfile(UserProfile profile) async {
+    try {
+      // Busca o ID do usuário pelo firebase_uid
+      final existing = await _supabaseService.getUserByFirebaseUid(profile.id);
+
+      if (existing != null) {
+        await _supabaseService.updateUser(
+          existing['id'],
+          _profileToMap(profile, includeFirebaseUid: false),
+        );
+      } else {
+        await _supabaseService.upsertUser(_profileToMap(profile));
+      }
+
+      return Result.success(null);
+    } catch (e) {
+      return Result.failure(Failure(message: 'Erro ao atualizar perfil: $e'));
+    }
+  }
+
+  @override
+  Stream<UserProfile?> watchProfile(String firebaseUid) async* {
+    // Supabase não suporta stream diretamente em queries com where
+    // Fazemos um fetch inicial
+    final result = await getProfile(firebaseUid);
+    yield result.fold(
+      onSuccess: (profile) => profile,
+      onFailure: (_) => null,
+    );
+  }
+
+  @override
+  Future<Result<String>> uploadProfileImage(String userId, File image) async {
+    try {
+      final path =
+          'profiles/$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final result = await _supabaseService.uploadFile(
+        bucket: 'avatars',
+        path: path,
+        file: image,
+      );
+
+      return result.fold(
+        onSuccess: (url) async {
+          // Atualiza o perfil com a nova URL
+          final existing = await _supabaseService.getUserByFirebaseUid(userId);
+          if (existing != null) {
+            await _supabaseService
+                .updateUser(existing['id'], {'photo_url': url});
+          }
+          return Result.success(url);
+        },
+        onFailure: (failure) => Result.failure(failure),
+      );
+    } catch (e) {
+      return Result.failure(Failure(message: 'Erro no upload da imagem: $e'));
+    }
+  }
+
+  // ============================================
+  // MAPPERS
+  // ============================================
+
+  Map<String, dynamic> _profileToMap(UserProfile profile,
+      {bool includeFirebaseUid = true}) {
+    final map = <String, dynamic>{
+      'email': profile.email,
+      'display_name': profile.displayName,
+      'photo_url': profile.photoUrl,
+      'role': profile.role.name,
+      'martial_art_type': profile.martialArtType?.name,
+      'legacy_belt_id': profile.graduation?.beltId,
+      'legacy_degree': profile.graduation?.degree,
+      'legacy_total_classes': profile.totalClasses,
+    };
+
+    if (includeFirebaseUid) {
+      map['firebase_uid'] = profile.id;
+    }
+
+    return map;
+  }
+
+  UserProfile _mapToProfile(Map<String, dynamic> data) {
+    // Parse role
+    final roleStr = data['role'] as String? ?? 'student';
+    final role = UserRole.values.firstWhere(
+      (r) => r.name == roleStr,
+      orElse: () => UserRole.student,
+    );
+
+    // Parse martial art type (pode ser null para owners sem modalidade definida)
+    final martialArtStr = data['martial_art_type'] as String?;
+    final martialArtType = martialArtStr != null
+        ? MartialArtType.values.firstWhere(
+            (t) => t.name == martialArtStr,
+            orElse: () => MartialArtType.jiuJitsu,
+          )
+        : null;
+
+    // Parse graduation
+    UserGraduation? graduation;
+    if (data['legacy_belt_id'] != null) {
+      graduation = UserGraduation(
+        beltId: data['legacy_belt_id'] as String,
+        degree: data['legacy_degree'] as int? ?? 0,
+        classesAtCurrentBelt: 0,
+      );
+    }
+
+    return UserProfile(
+      id: data['firebase_uid'] as String,
+      email: data['email'] as String? ?? '',
+      displayName: data['display_name'] as String?,
+      photoUrl: data['photo_url'] as String?,
+      role: role,
+      martialArtType: martialArtType,
+      graduation: graduation,
+      totalClasses: data['legacy_total_classes'] as int? ?? 0,
+      createdAt: data['created_at'] != null
+          ? DateTime.parse(data['created_at'] as String)
+          : null,
+      updatedAt: data['updated_at'] != null
+          ? DateTime.parse(data['updated_at'] as String)
+          : null,
+    );
+  }
+}
