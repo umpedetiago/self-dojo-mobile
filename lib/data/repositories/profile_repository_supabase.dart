@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:self_dojo_mobile/core/utils/result.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
 import 'package:self_dojo_mobile/data/services/supabase_service.dart';
+import 'package:self_dojo_mobile/domain/models/academy/student_modality.dart';
 import 'package:self_dojo_mobile/domain/models/academy/user_role.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
 import 'package:self_dojo_mobile/domain/models/user_profile.dart';
@@ -28,7 +29,14 @@ class ProfileRepositorySupabase implements ProfileRepository {
         ));
       }
 
-      final profile = _mapToProfile(data);
+      // Busca as modalidades matriculadas do aluno
+      final userId = data['id'] as String;
+      final enrolledModalitiesData =
+          await _supabaseService.getUserEnrolledModalities(userId);
+      final enrolledModalities =
+          enrolledModalitiesData.map(_mapToStudentModality).toList();
+
+      final profile = _mapToProfile(data, enrolledModalities: enrolledModalities);
       return Result.success(profile);
     } catch (e) {
       return Result.failure(Failure(message: 'Erro ao buscar perfil: $e'));
@@ -130,7 +138,10 @@ class ProfileRepositorySupabase implements ProfileRepository {
     return map;
   }
 
-  UserProfile _mapToProfile(Map<String, dynamic> data) {
+  UserProfile _mapToProfile(
+    Map<String, dynamic> data, {
+    List<StudentModality> enrolledModalities = const [],
+  }) {
     // Parse role
     final roleStr = data['role'] as String? ?? 'student';
     final role = UserRole.values.firstWhere(
@@ -166,6 +177,7 @@ class ProfileRepositorySupabase implements ProfileRepository {
       role: role,
       martialArtType: martialArtType,
       graduation: graduation,
+      enrolledModalities: enrolledModalities,
       totalClasses: data['legacy_total_classes'] as int? ?? 0,
       createdAt: data['created_at'] != null
           ? DateTime.parse(data['created_at'] as String)
@@ -173,6 +185,49 @@ class ProfileRepositorySupabase implements ProfileRepository {
       updatedAt: data['updated_at'] != null
           ? DateTime.parse(data['updated_at'] as String)
           : null,
+    );
+  }
+
+  /// Converte dados do banco para StudentModality
+  StudentModality _mapToStudentModality(Map<String, dynamic> data) {
+    // Parse tipo da arte marcial
+    final typeStr = data['martial_art_type'] as String? ?? 'jiuJitsu';
+    final type = MartialArtType.values.firstWhere(
+      (t) => t.name == typeStr,
+      orElse: () => MartialArtType.jiuJitsu,
+    );
+
+    // Parse graduação atual
+    final graduation = UserGraduation(
+      beltId: data['belt_id'] as String? ?? '',
+      degree: data['degree'] as int? ?? 0,
+      classesAtCurrentBelt: data['total_classes_at_current_belt'] as int? ?? 0,
+      promotionDate: data['last_promotion_at'] != null
+          ? DateTime.tryParse(data['last_promotion_at'] as String)
+          : null,
+    );
+
+    // Parse histórico de graduações
+    final historyData = data['graduation_history'] as List<dynamic>? ?? [];
+    final graduationHistory = historyData.map((h) {
+      final historyMap = h as Map<String, dynamic>;
+      return GraduationHistory(
+        beltId: historyMap['new_belt_id'] as String? ?? '',
+        degree: historyMap['new_degree'] as int? ?? 0,
+        date: DateTime.tryParse(historyMap['promoted_at'] as String? ?? '') ??
+            DateTime.now(),
+        notes: historyMap['notes'] as String?,
+      );
+    }).toList();
+
+    return StudentModality(
+      type: type,
+      assignedTeacherId: data['assigned_teacher_id'] as String?,
+      graduation: graduation,
+      graduationHistory: graduationHistory,
+      totalClasses: data['total_classes'] as int? ?? 0,
+      enrolledAt: DateTime.tryParse(data['enrolled_at'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 }

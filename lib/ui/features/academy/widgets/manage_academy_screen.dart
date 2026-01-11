@@ -119,9 +119,12 @@ class _ManageAcademyContent extends StatelessWidget {
                     _buildStatCard(
                       icon: Icons.pending_actions,
                       label: 'Solicitações',
-                      value: '0', // TODO: implementar contador
+                      value: '${viewModel.pendingRequestsCount}',
                       color: Colors.orange,
-                      onTap: () => context.push('/academy/requests'),
+                      onTap: () async {
+                        await context.push('/academy/requests');
+                        viewModel.refreshPendingRequestsCount();
+                      },
                     ),
                   ]),
                 ),
@@ -159,7 +162,10 @@ class _ManageAcademyContent extends StatelessWidget {
                         icon: Icons.person_add,
                         title: 'Solicitações',
                         subtitle: 'Aprovar novos alunos',
-                        onTap: () => context.push('/academy/requests'),
+                        onTap: () async {
+                          await context.push('/academy/requests');
+                          viewModel.refreshPendingRequestsCount();
+                        },
                       ),
                       _buildMenuItem(
                         icon: Icons.school,

@@ -44,6 +44,9 @@ class AcademyViewModel extends ChangeNotifier {
   int _studentCount = 0;
   int get studentCount => _studentCount;
 
+  int _pendingRequestsCount = 0;
+  int get pendingRequestsCount => _pendingRequestsCount;
+
   // Commands
   late final Command1<Academy, CreateAcademyParams> createAcademy;
   late final Command1<void, Academy> updateAcademy;
@@ -76,6 +79,7 @@ class AcademyViewModel extends ChangeNotifier {
           _academy = academy;
           _watchAcademy(academy.id);
           _loadStudentCount(academy.id);
+          _loadPendingRequestsCount(academy.id);
         }
         _isLoading = false;
         notifyListeners();
@@ -113,6 +117,24 @@ class AcademyViewModel extends ChangeNotifier {
       },
       onFailure: (_) {},
     );
+  }
+
+  Future<void> _loadPendingRequestsCount(String academyId) async {
+    final result = await _academyRepository.countPendingRequests(academyId);
+    result.fold(
+      onSuccess: (count) {
+        _pendingRequestsCount = count;
+        notifyListeners();
+      },
+      onFailure: (_) {},
+    );
+  }
+
+  /// Recarrega o contador de solicitações pendentes
+  Future<void> refreshPendingRequestsCount() async {
+    if (_academy.id.isNotEmpty) {
+      await _loadPendingRequestsCount(_academy.id);
+    }
   }
 
   /// Cria uma nova academia

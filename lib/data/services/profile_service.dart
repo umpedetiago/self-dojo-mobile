@@ -39,27 +39,27 @@ class ProfileService extends ChangeNotifier {
 
     final result = await _profileRepository.getProfile(userId);
 
-    result.fold(
-      onSuccess: (profile) {
-        if (profile.email.isNotEmpty) {
-          _profile = profile;
+    switch (result) {
+      case Success<UserProfile>(:final data):
+        if (data.email.isNotEmpty) {
+          _profile = data;
         } else {
-          // Perfil vazio, criar inicial
+          // Perfil vazio, criar inicial e salvar no banco
           _profile = UserProfile(
             id: userId,
             email: email ?? '',
             displayName: displayName,
             photoUrl: photoUrl,
           );
+          // Salva o perfil no banco de dados para que exista um registro
+          await _profileRepository.saveProfile(_profile);
         }
         _isLoading = false;
         _error = null;
-      },
-      onFailure: (failure) {
-        _error = failure.message;
+      case Failure<UserProfile>(:final message):
+        _error = message;
         _isLoading = false;
-      },
-    );
+    }
 
     notifyListeners();
   }

@@ -264,6 +264,16 @@ class AcademyRepositorySupabase implements AcademyRepository {
     }
   }
 
+  @override
+  Future<Result<int>> countPendingRequests(String academyId) async {
+    try {
+      final count = await _supabaseService.countPendingRequests(academyId);
+      return Result.success(count);
+    } catch (e) {
+      return Result.failure(Failure(message: 'Erro ao contar solicitações: $e'));
+    }
+  }
+
   // ============================================
   // MAPPERS
   // ============================================
@@ -364,6 +374,7 @@ class AcademyRepositorySupabase implements AcademyRepository {
     );
 
     return AcademyModality(
+      id: data['id'] as String,
       type: type,
       masterId: data['master_id'] as String?,
       teacherIds: const [],

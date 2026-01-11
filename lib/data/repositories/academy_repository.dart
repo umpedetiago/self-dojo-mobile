@@ -58,4 +58,7 @@ abstract class AcademyRepository {
 
   /// Conta alunos
   Future<Result<int>> countStudents(String academyId);
+
+  /// Conta solicitações pendentes
+  Future<Result<int>> countPendingRequests(String academyId);
 }

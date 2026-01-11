@@ -83,26 +83,34 @@ class _HomeContent extends StatelessWidget {
       body: Container(
         decoration: _backgroundDecoration,
         child: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              // Header com perfil
-              SliverToBoxAdapter(
-                child: ProfileHeader(
-                  profile: profile,
-                  onLogout: () => _showLogoutDialog(context, authViewModel),
-                  onEditProfile: () => context.push('/profile/edit'),
+          child: RefreshIndicator(
+            onRefresh: () => profileService.refresh(),
+            color: AppColors.primary,
+            backgroundColor: AppColors.surfaceDark,
+            child: CustomScrollView(
+              slivers: [
+                // Header com perfil
+                SliverToBoxAdapter(
+                  child: ProfileHeader(
+                    profile: profile,
+                    onLogout: () => _showLogoutDialog(context, authViewModel),
+                    onEditProfile: () => context.push('/profile/edit'),
+                  ),
                 ),
-              ),
 
-              // Faixa atual
+              // Faixa atual (usa modalidade matriculada se disponível, senão legado)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                   child: BeltDisplay(
                     martialArt: martialArt,
                     belt: currentBelt,
-                    degree: profile.graduation?.degree ?? 0,
-                    graduation: profile.graduation,
+                    degree: profile.enrolledModalities.isNotEmpty
+                        ? profile.enrolledModalities.first.graduation.degree
+                        : profile.graduation?.degree ?? 0,
+                    graduation: profile.enrolledModalities.isNotEmpty
+                        ? profile.enrolledModalities.first.graduation
+                        : profile.graduation,
                   ),
                 ),
               ),
@@ -121,7 +129,7 @@ class _HomeContent extends StatelessWidget {
                     StatsCard(
                       icon: Icons.fitness_center,
                       label: 'Total de Aulas',
-                      value: '${profile.totalClasses}',
+                      value: '${profile.totalClassesAll}',
                       color: AppColors.primary,
                     ),
                     StatsCard(
@@ -162,6 +170,15 @@ class _HomeContent extends StatelessWidget {
                 ),
               ),
 
+              // Todas as modalidades matriculadas (se tiver mais de uma)
+              if (profile.enrolledModalities.length > 1)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: _buildEnrolledModalities(profile),
+                  ),
+                ),
+
               // Informações adicionais
               SliverToBoxAdapter(
                 child: Padding(
@@ -170,8 +187,8 @@ class _HomeContent extends StatelessWidget {
                 ),
               ),
 
-              // Histórico de graduações
-              if (profile.graduationHistory.isNotEmpty)
+              // Histórico de graduações (usa modalidade matriculada se disponível, senão legado)
+              if (_hasGraduationHistory(profile))
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -185,6 +202,7 @@ class _HomeContent extends StatelessWidget {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -202,40 +220,84 @@ class _HomeContent extends StatelessWidget {
       );
 
   Widget _buildQuickActions(BuildContext context, UserProfile profile) {
-    // Verifica se tem academia (owner ou tem academyId)
-    final hasAcademy = profile.isOwner || (profile.academyId != null && profile.academyId!.isNotEmpty);
+    // Verifica se é owner
+    final isOwner = profile.isOwner;
+    // Verifica se tem academia vinculada (como aluno)
+    final hasAcademy = profile.academyId != null && profile.academyId!.isNotEmpty;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _buildQuickActionButton(
-              icon: Icons.business,
-              label: hasAcademy ? 'Minha Academia' : 'Criar Academia',
-              color: AppColors.primary,
-              onTap: () {
-                // Sempre tenta ir para manage primeiro, se não tiver academia redireciona
-                context.push('/academy/manage');
-              },
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildQuickActionButton(
-              icon: Icons.qr_code_scanner,
-              label: 'Check-in',
-              color: AppColors.secondary,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Check-in em desenvolvimento'),
-                    backgroundColor: AppColors.warning,
+          Row(
+            children: [
+              if (isOwner)
+                Expanded(
+                  child: _buildQuickActionButton(
+                    icon: Icons.business,
+                    label: 'Minha Academia',
+                    color: AppColors.primary,
+                    onTap: () => context.push('/academy/manage'),
                   ),
-                );
-              },
-            ),
+                )
+              else if (hasAcademy)
+                Expanded(
+                  child: _buildQuickActionButton(
+                    icon: Icons.home_work,
+                    label: 'Minha Academia',
+                    color: AppColors.primary,
+                    onTap: () {
+                      // TODO: ir para visualização da academia do aluno
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Visualização da academia em desenvolvimento'),
+                          backgroundColor: AppColors.warning,
+                        ),
+                      );
+                    },
+                  ),
+                )
+              else
+                Expanded(
+                  child: _buildQuickActionButton(
+                    icon: Icons.search,
+                    label: 'Buscar Academia',
+                    color: AppColors.primary,
+                    onTap: () => context.push('/academy/search'),
+                  ),
+                ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickActionButton(
+                  icon: Icons.qr_code_scanner,
+                  label: 'Check-in',
+                  color: AppColors.secondary,
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Check-in em desenvolvimento'),
+                        backgroundColor: AppColors.warning,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
+          // Botão adicional para owner: buscar academia também
+          if (!isOwner && !hasAcademy)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: _buildQuickActionButton(
+                  icon: Icons.add_business,
+                  label: 'Criar Academia',
+                  color: AppColors.accent,
+                  onTap: () => context.push('/academy/create'),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -349,6 +411,11 @@ class _HomeContent extends StatelessWidget {
   }
 
   Widget _buildGraduationHistory(UserProfile profile, MartialArt martialArt) {
+    // Usa histórico da modalidade matriculada se disponível, senão legado
+    final graduationHistory = profile.enrolledModalities.isNotEmpty
+        ? profile.enrolledModalities.first.graduationHistory
+        : profile.graduationHistory;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -370,7 +437,7 @@ class _HomeContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          ...profile.graduationHistory.reversed.take(5).map((history) {
+          ...graduationHistory.reversed.take(5).map((history) {
             final belt = martialArt.getBeltById(history.beltId);
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -463,6 +530,101 @@ class _HomeContent extends StatelessWidget {
       return AppColors.textSecondaryDark;
     }
     return belt.color;
+  }
+
+  /// Verifica se tem histórico de graduações (modalidade matriculada ou legado)
+  bool _hasGraduationHistory(UserProfile profile) {
+    if (profile.enrolledModalities.isNotEmpty) {
+      return profile.enrolledModalities.first.graduationHistory.isNotEmpty;
+    }
+    return profile.graduationHistory.isNotEmpty;
+  }
+
+  /// Exibe todas as modalidades matriculadas do aluno
+  Widget _buildEnrolledModalities(UserProfile profile) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDark.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.surfaceVariantDark.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Minhas Modalidades',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimaryDark,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...profile.enrolledModalities.map((modality) {
+            final martialArt = modality.martialArt;
+            final belt = modality.currentBelt;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: martialArt.primaryColor.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      martialArt.icon,
+                      color: martialArt.primaryColor,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          martialArt.name,
+                          style: const TextStyle(
+                            color: AppColors.textPrimaryDark,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          belt != null
+                              ? '${belt.name}${modality.graduation.degree > 0 ? ' - ${modality.graduation.degree}º grau' : ''}'
+                              : 'Sem graduação',
+                          style: TextStyle(
+                            color: AppColors.textSecondaryDark,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (belt != null)
+                    Container(
+                      width: 40,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: belt.color,
+                        borderRadius: BorderRadius.circular(2),
+                        border: belt.color == Colors.white
+                            ? Border.all(color: Colors.grey.shade400)
+                            : null,
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 
   void _showLogoutDialog(BuildContext context, AuthViewModel authViewModel) {

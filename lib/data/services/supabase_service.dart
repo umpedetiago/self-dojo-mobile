@@ -113,6 +113,137 @@ class SupabaseService {
         });
   }
 
+  /// Busca academias por nome ou cidade
+  Future<List<Map<String, dynamic>>> searchAcademies({
+    String? query,
+    String? city,
+    String? modalityType,
+    int limit = 20,
+  }) async {
+    var request = _client.from('academies').select('''
+      *,
+      academy_modalities (
+        martial_art_type
+      )
+    ''');
+
+    // Aplica filtro de busca se houver query
+    if (query != null && query.isNotEmpty) {
+      request = request.or('name.ilike.%$query%,city.ilike.%$query%');
+    }
+
+    if (city != null && city.isNotEmpty) {
+      request = request.ilike('city', '%$city%');
+    }
+
+    final response = await request.limit(limit).order('name');
+    
+    // Filtra resultados em memória
+    var results = List<Map<String, dynamic>>.from(response);
+    
+    // Filtra academias inativas (is_active = false explicitamente)
+    results = results.where((academy) {
+      final isActive = academy['is_active'];
+      return isActive == null || isActive == true;
+    }).toList();
+    
+    // Filtra por modalidade se especificado
+    if (modalityType != null) {
+      results = results.where((academy) {
+        final modalities = academy['academy_modalities'] as List? ?? [];
+        return modalities.any((m) => m['martial_art_type'] == modalityType);
+      }).toList();
+    }
+
+    return results;
+  }
+
+  /// Verifica se usuário já tem solicitação pendente para academia
+  Future<Map<String, dynamic>?> getPendingRequest(
+      String academyId, String oderId) async {
+    final response = await _client
+        .from('academy_members')
+        .select()
+        .eq('academy_id', academyId)
+        .eq('user_id', oderId)
+        .maybeSingle();
+    return response;
+  }
+
+  /// Cria solicitação de vínculo
+  Future<Map<String, dynamic>> createMemberRequest(
+      Map<String, dynamic> data) async {
+    final response = await _client
+        .from('academy_members')
+        .insert(data)
+        .select()
+        .single();
+    return response;
+  }
+
+  /// Cancela solicitação de vínculo
+  Future<void> cancelMemberRequest(String memberId) async {
+    await _client.from('academy_members').delete().eq('id', memberId);
+  }
+
+  /// Conta solicitações pendentes da academia
+  Future<int> countPendingRequests(String academyId) async {
+    final response = await _client
+        .from('academy_members')
+        .select('id')
+        .eq('academy_id', academyId)
+        .eq('status', 'pending');
+    return (response as List).length;
+  }
+
+  /// Busca solicitações pendentes da academia
+  Future<List<Map<String, dynamic>>> getPendingRequests(
+      String academyId) async {
+    // Busca membros pendentes
+    final members = await _client
+        .from('academy_members')
+        .select()
+        .eq('academy_id', academyId)
+        .eq('status', 'pending')
+        .order('created_at', ascending: false);
+    
+    final results = <Map<String, dynamic>>[];
+    
+    // Para cada membro, busca os dados do usuário
+    for (final member in members) {
+      final userId = member['user_id'] as String?;
+      if (userId != null) {
+        final user = await _client
+            .from('users')
+            .select()
+            .eq('id', userId)
+            .maybeSingle();
+        
+        results.add({
+          ...member,
+          'users': user,
+        });
+      } else {
+        results.add(member);
+      }
+    }
+    
+    return results;
+  }
+
+  /// Aprova solicitação
+  Future<void> approveMemberRequest(String memberId) async {
+    await _client.from('academy_members').update({
+      'status': 'approved',
+      'joined_at': DateTime.now().toIso8601String(),
+    }).eq('id', memberId);
+  }
+
+  /// Rejeita solicitação
+  Future<void> rejectMemberRequest(String memberId) async {
+    await _client.from('academy_members').delete().eq('id', memberId);
+  }
+
   // ============================================
   // ACADEMY MODALITIES
   // ============================================
@@ -173,13 +304,26 @@ class SupabaseService {
   /// Busca membro da academia
   Future<Map<String, dynamic>?> getAcademyMember(
       String academyId, String userId) async {
-    final response = await _client
+    final member = await _client
         .from('academy_members')
-        .select('*, users(*)')
+        .select()
         .eq('academy_id', academyId)
         .eq('user_id', userId)
         .maybeSingle();
-    return response;
+    
+    if (member == null) return null;
+    
+    // Busca dados do usuário
+    final user = await _client
+        .from('users')
+        .select()
+        .eq('id', userId)
+        .maybeSingle();
+    
+    return {
+      ...member,
+      'users': user,
+    };
   }
 
   /// Busca membros da academia
@@ -187,7 +331,7 @@ class SupabaseService {
       {String? status, String? role}) async {
     var query = _client
         .from('academy_members')
-        .select('*, users(*)')
+        .select()
         .eq('academy_id', academyId);
 
     if (status != null) {
@@ -197,8 +341,27 @@ class SupabaseService {
       query = query.eq('role', role);
     }
 
-    final response = await query;
-    return List<Map<String, dynamic>>.from(response);
+    final members = await query;
+    final results = <Map<String, dynamic>>[];
+
+    // Para cada membro, busca os dados do usuário
+    for (final member in members) {
+      final userId = member['user_id'] as String?;
+      if (userId != null) {
+        final user = await _client
+            .from('users')
+            .select()
+            .eq('id', userId)
+            .maybeSingle();
+        
+        results.add({
+          ...member,
+          'users': user,
+        });
+      }
+    }
+
+    return results;
   }
 
   /// Conta membros da academia
@@ -228,6 +391,28 @@ class SupabaseService {
     await _client.from('academy_members').update(data).eq('id', id);
   }
 
+  /// Busca o membro da academia pelo user_id (para qualquer academia)
+  Future<Map<String, dynamic>?> getMemberByUserId(String userId) async {
+    final member = await _client
+        .from('academy_members')
+        .select()
+        .eq('user_id', userId)
+        .eq('status', 'approved')
+        .maybeSingle();
+    return member;
+  }
+
+  /// Busca todas as modalidades matriculadas de um usuário pelo user_id
+  Future<List<Map<String, dynamic>>> getUserEnrolledModalities(
+      String userId) async {
+    // Primeiro busca o membro aprovado
+    final member = await getMemberByUserId(userId);
+    if (member == null) return [];
+
+    // Busca as modalidades do membro
+    return getStudentModalities(member['id'] as String);
+  }
+
   // ============================================
   // STUDENT MODALITIES
   // ============================================
@@ -235,11 +420,42 @@ class SupabaseService {
   /// Busca modalidades do aluno
   Future<List<Map<String, dynamic>>> getStudentModalities(
       String memberId) async {
-    final response = await _client
+    // Busca modalidades do aluno
+    final modalities = await _client
         .from('student_modalities')
-        .select('*, graduation_history(*), academy_modalities(*)')
+        .select()
         .eq('member_id', memberId);
-    return List<Map<String, dynamic>>.from(response);
+    
+    final results = <Map<String, dynamic>>[];
+    
+    for (final modality in modalities) {
+      // Busca histórico de graduação
+      final historyResponse = await _client
+          .from('graduation_history')
+          .select()
+          .eq('student_modality_id', modality['id'])
+          .order('promoted_at', ascending: false);
+      
+      // Busca o tipo da modalidade da tabela academy_modalities
+      String? martialArtType;
+      final modalityId = modality['modality_id'] as String?;
+      if (modalityId != null) {
+        final academyModality = await _client
+            .from('academy_modalities')
+            .select('martial_art_type')
+            .eq('id', modalityId)
+            .maybeSingle();
+        martialArtType = academyModality?['martial_art_type'] as String?;
+      }
+      
+      results.add({
+        ...modality,
+        'graduation_history': historyResponse,
+        'martial_art_type': martialArtType,
+      });
+    }
+    
+    return results;
   }
 
   /// Matricula aluno em modalidade
@@ -257,6 +473,11 @@ class SupabaseService {
   Future<void> updateStudentModality(
       String id, Map<String, dynamic> data) async {
     await _client.from('student_modalities').update(data).eq('id', id);
+  }
+
+  /// Remove matrícula de modalidade
+  Future<void> deleteStudentModality(String id) async {
+    await _client.from('student_modalities').delete().eq('id', id);
   }
 
   /// Incrementa aulas do aluno (usa function do Postgres)

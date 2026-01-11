@@ -212,65 +212,103 @@ class _ModalitiesContent extends StatelessWidget {
                 top: Radius.circular(16),
               ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: martialArt.primaryColor.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(10),
+            child:               Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: martialArt.primaryColor.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      martialArt.icon,
+                      color: martialArt.primaryColor,
+                      size: 24,
+                    ),
                   ),
-                  child: Icon(
-                    martialArt.icon,
-                    color: martialArt.primaryColor,
-                    size: 24,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          martialArt.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimaryDark,
+                          ),
+                        ),
+                        Text(
+                          modality.graduationConfig.useDefaultConfig
+                              ? 'Graduação padrão'
+                              : 'Graduação personalizada',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondaryDark,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        martialArt.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimaryDark,
+                  if (!modality.isActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Inativa',
+                        style: TextStyle(
+                          color: AppColors.error,
+                          fontSize: 12,
                         ),
                       ),
-                      Text(
-                        modality.graduationConfig.useDefaultConfig
-                            ? 'Graduação padrão'
-                            : 'Graduação personalizada',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondaryDark,
+                    ),
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_vert,
+                      color: AppColors.textSecondaryDark,
+                    ),
+                    color: AppColors.surfaceDark,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onSelected: (value) {
+                      if (value == 'remove') {
+                        _showRemoveModalityDialog(
+                          context,
+                          modality,
+                          viewModel,
+                        );
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'remove',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline,
+                              color: AppColors.error,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Remover modalidade',
+                              style: TextStyle(color: AppColors.error),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-                if (!modality.isActive)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'Inativa',
-                      style: TextStyle(
-                        color: AppColors.error,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+                ],
+              ),
           ),
 
           // Content
@@ -489,6 +527,128 @@ class _ModalitiesContent extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRemoveModalityDialog(
+    BuildContext context,
+    AcademyModality modality,
+    AcademyViewModel viewModel,
+  ) {
+    final martialArt = modality.martialArt;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surfaceDark,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.warning,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Remover Modalidade',
+                style: TextStyle(
+                  color: AppColors.textPrimaryDark,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tem certeza que deseja remover ${martialArt.name}?',
+              style: const TextStyle(
+                color: AppColors.textPrimaryDark,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.error.withValues(alpha: 0.3),
+                ),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: AppColors.error,
+                    size: 20,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Esta ação não pode ser desfeita. As graduações dos alunos nesta modalidade serão mantidas.',
+                      style: TextStyle(
+                        color: AppColors.textSecondaryDark,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: AppColors.textSecondaryDark),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final result =
+                  await viewModel.removeModality.execute(modality.type);
+              if (context.mounted) {
+                result.fold(
+                  onSuccess: (_) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${martialArt.name} removida com sucesso'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  },
+                  onFailure: (failure) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(failure.message),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  },
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Remover'),
           ),
         ],
       ),
