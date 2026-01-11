@@ -12,6 +12,9 @@ class Belt extends Equatable {
     required this.minClassesForPromotion,
     this.secondaryColor,
     this.minMonthsAtBelt,
+    this.hasBlackTip = false,
+    this.degreeMarkColor,
+    this.tipColor,
   });
 
   /// ID único da faixa
@@ -38,6 +41,15 @@ class Belt extends Equatable {
   /// Tempo mínimo (em meses) nesta faixa antes de promoção
   final int? minMonthsAtBelt;
 
+  /// Se a faixa tem ponteira (padrão BJJ)
+  final bool hasBlackTip;
+
+  /// Cor das marcas de grau (se null, usa contraste automático)
+  final Color? degreeMarkColor;
+
+  /// Cor da ponteira (se null e hasBlackTip=true, usa preto)
+  final Color? tipColor;
+
   /// Verifica se a faixa tem graus
   bool get hasDegrees => maxDegrees > 0;
 
@@ -51,6 +63,9 @@ class Belt extends Equatable {
         maxDegrees,
         minClassesForPromotion,
         minMonthsAtBelt,
+        hasBlackTip,
+        degreeMarkColor,
+        tipColor,
       ];
 
   @override
@@ -64,6 +79,7 @@ class UserGraduation extends Equatable {
     this.degree = 0,
     this.promotionDate,
     this.classesAtCurrentBelt = 0,
+    this.hasAparadores,
   });
 
   /// ID da faixa atual
@@ -77,6 +93,14 @@ class UserGraduation extends Equatable {
 
   /// Número de aulas desde a última promoção
   final int classesAtCurrentBelt;
+
+  /// Se tem aparadores na faixa preta (null = usar padrão: true se tem graus)
+  final bool? hasAparadores;
+
+  /// Retorna se deve mostrar aparadores
+  /// - Se tem graus > 0: sempre mostra
+  /// - Se graus = 0: usa o valor de hasAparadores (padrão false)
+  bool get showAparadores => degree > 0 || (hasAparadores ?? false);
 
   /// Cria uma graduação inicial (faixa branca, sem grau)
   factory UserGraduation.initial(String initialBeltId) {
@@ -95,6 +119,7 @@ class UserGraduation extends Equatable {
       'degree': degree,
       'promotionDate': promotionDate?.toIso8601String(),
       'classesAtCurrentBelt': classesAtCurrentBelt,
+      'hasAparadores': hasAparadores,
     };
   }
 
@@ -107,6 +132,7 @@ class UserGraduation extends Equatable {
           ? DateTime.parse(map['promotionDate'] as String)
           : null,
       classesAtCurrentBelt: map['classesAtCurrentBelt'] as int? ?? 0,
+      hasAparadores: map['hasAparadores'] as bool?,
     );
   }
 
@@ -116,17 +142,19 @@ class UserGraduation extends Equatable {
     int? degree,
     DateTime? promotionDate,
     int? classesAtCurrentBelt,
+    bool? hasAparadores,
   }) {
     return UserGraduation(
       beltId: beltId ?? this.beltId,
       degree: degree ?? this.degree,
       promotionDate: promotionDate ?? this.promotionDate,
       classesAtCurrentBelt: classesAtCurrentBelt ?? this.classesAtCurrentBelt,
+      hasAparadores: hasAparadores ?? this.hasAparadores,
     );
   }
 
   @override
-  List<Object?> get props => [beltId, degree, promotionDate, classesAtCurrentBelt];
+  List<Object?> get props => [beltId, degree, promotionDate, classesAtCurrentBelt, hasAparadores];
 }
 
 /// Histórico de graduações

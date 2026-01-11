@@ -12,6 +12,7 @@ import 'package:self_dojo_mobile/data/repositories/auth_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/services/firebase_auth_service.dart';
+import 'package:self_dojo_mobile/data/services/profile_service.dart';
 import 'package:self_dojo_mobile/data/services/supabase_service.dart';
 import 'package:self_dojo_mobile/firebase_options.dart';
 import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
@@ -79,6 +80,13 @@ class SelfDojoApp extends StatelessWidget {
         Provider<AcademyRepository>(
           create: (ctx) => AcademyRepositorySupabase(
             supabaseService: ctx.read<SupabaseService>(),
+          ),
+        ),
+
+        // Services Globais
+        ChangeNotifierProvider<ProfileService>(
+          create: (ctx) => ProfileService(
+            profileRepository: ctx.read<ProfileRepository>(),
           ),
         ),
 

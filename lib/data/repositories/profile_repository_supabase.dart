@@ -120,6 +120,7 @@ class ProfileRepositorySupabase implements ProfileRepository {
       'legacy_belt_id': profile.graduation?.beltId,
       'legacy_degree': profile.graduation?.degree,
       'legacy_total_classes': profile.totalClasses,
+      'legacy_has_aparadores': profile.graduation?.hasAparadores,
     };
 
     if (includeFirebaseUid) {
@@ -153,6 +154,7 @@ class ProfileRepositorySupabase implements ProfileRepository {
         beltId: data['legacy_belt_id'] as String,
         degree: data['legacy_degree'] as int? ?? 0,
         classesAtCurrentBelt: 0,
+        hasAparadores: data['legacy_has_aparadores'] as bool?,
       );
     }
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
-import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
+import 'package:self_dojo_mobile/data/services/profile_service.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/belt.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
 import 'package:self_dojo_mobile/domain/models/user_profile.dart';
@@ -10,11 +10,35 @@ import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dar
 import 'package:self_dojo_mobile/ui/features/home/widgets/belt_display.dart';
 import 'package:self_dojo_mobile/ui/features/home/widgets/profile_header.dart';
 import 'package:self_dojo_mobile/ui/features/home/widgets/stats_card.dart';
-import 'package:self_dojo_mobile/ui/features/profile/view_models/profile_viewmodel.dart';
 
 /// Tela Home principal
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Inicializa o ProfileService com os dados do usuário autenticado
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authViewModel = context.read<AuthViewModel>();
+      final profileService = context.read<ProfileService>();
+      final user = authViewModel.user;
+
+      if (user.id.isNotEmpty) {
+        profileService.init(
+          user.id,
+          email: user.email,
+          displayName: user.displayName,
+          photoUrl: user.photoUrl,
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,14 +51,7 @@ class HomeScreen extends StatelessWidget {
       );
     }
 
-    return ChangeNotifierProvider(
-      create: (ctx) => ProfileViewModel(
-        profileRepository: ctx.read<ProfileRepository>(),
-        userId: userId,
-        authUser: authViewModel.user,
-      ),
-      child: const _HomeContent(),
-    );
+    return const _HomeContent();
   }
 }
 
@@ -43,10 +60,10 @@ class _HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final profileViewModel = context.watch<ProfileViewModel>();
+    final profileService = context.watch<ProfileService>();
     final authViewModel = context.read<AuthViewModel>();
 
-    if (profileViewModel.isLoading) {
+    if (profileService.isLoading) {
       return Scaffold(
         body: Container(
           decoration: _backgroundDecoration,
@@ -57,7 +74,7 @@ class _HomeContent extends StatelessWidget {
       );
     }
 
-    final profile = profileViewModel.profile;
+    final profile = profileService.profile;
     final martialArt = profile.martialArt;
     final currentBelt = profile.currentBelt;
     final nextBelt = profile.nextBelt;
@@ -85,6 +102,7 @@ class _HomeContent extends StatelessWidget {
                     martialArt: martialArt,
                     belt: currentBelt,
                     degree: profile.graduation?.degree ?? 0,
+                    graduation: profile.graduation,
                   ),
                 ),
               ),
@@ -450,7 +468,7 @@ class _HomeContent extends StatelessWidget {
   void _showLogoutDialog(BuildContext context, AuthViewModel authViewModel) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surfaceDark,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -462,12 +480,14 @@ class _HomeContent extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
+              // Limpa o ProfileService antes de fazer logout
+              context.read<ProfileService>().clear();
               authViewModel.signOut();
             },
             style: ElevatedButton.styleFrom(

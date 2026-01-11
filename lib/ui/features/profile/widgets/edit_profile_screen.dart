@@ -4,12 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
-import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
+import 'package:self_dojo_mobile/data/services/profile_service.dart';
+import 'package:self_dojo_mobile/domain/models/martial_arts/belt.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
 import 'package:self_dojo_mobile/domain/models/user_profile.dart';
-import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
 import 'package:self_dojo_mobile/ui/features/auth/widgets/auth_text_field.dart';
-import 'package:self_dojo_mobile/ui/features/profile/view_models/profile_viewmodel.dart';
 
 /// Tela de edição de perfil
 class EditProfileScreen extends StatelessWidget {
@@ -17,23 +16,7 @@ class EditProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authViewModel = context.watch<AuthViewModel>();
-    final userId = authViewModel.user.id;
-
-    if (userId.isEmpty) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    return ChangeNotifierProvider(
-      create: (ctx) => ProfileViewModel(
-        profileRepository: ctx.read<ProfileRepository>(),
-        userId: userId,
-        authUser: authViewModel.user,
-      ),
-      child: const _EditProfileContent(),
-    );
+    return const _EditProfileContent();
   }
 }
 
@@ -51,6 +34,9 @@ class _EditProfileContentState extends State<_EditProfileContent> {
   late TextEditingController _weightController;
 
   MartialArtType? _selectedMartialArt;
+  String? _selectedBeltId;
+  int _selectedDegree = 0;
+  bool _hasAparadores = false;
   File? _selectedPhoto;
   bool _isSaving = false;
   bool _initialized = false;
@@ -83,15 +69,18 @@ class _EditProfileContentState extends State<_EditProfileContent> {
     _instructorController.text = profile.instructorName ?? '';
     _weightController.text = profile.weightCategory ?? '';
     _selectedMartialArt = profile.martialArtType;
+    _selectedBeltId = profile.graduation?.beltId;
+    _selectedDegree = profile.graduation?.degree ?? 0;
+    _hasAparadores = profile.graduation?.hasAparadores ?? false;
     _initialized = true;
   }
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<ProfileViewModel>();
-    final profile = viewModel.profile;
+    final profileService = context.watch<ProfileService>();
+    final profile = profileService.profile;
 
-    if (viewModel.isLoading) {
+    if (profileService.isLoading) {
       return Scaffold(
         body: Container(
           decoration: _backgroundDecoration,
@@ -141,6 +130,22 @@ class _EditProfileContentState extends State<_EditProfileContent> {
                       _buildMartialArtSelector(),
                       const SizedBox(height: 24),
 
+                      // Graduação (apenas para owners)
+                      if (profile.isOwner) ...[
+                        _buildSectionTitle('Minha Graduação'),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Como dono de academia, você pode definir sua própria graduação.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondaryDark.withValues(alpha: 0.7),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildGraduationSelector(),
+                        const SizedBox(height: 24),
+                      ],
+
                       // Academia
                       _buildSectionTitle('Academia'),
                       const SizedBox(height: 16),
@@ -171,7 +176,7 @@ class _EditProfileContentState extends State<_EditProfileContent> {
                       const SizedBox(height: 40),
 
                       // Botão salvar
-                      _buildSaveButton(viewModel, profile),
+                      _buildSaveButton(profileService, profile),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -351,6 +356,9 @@ class _EditProfileContentState extends State<_EditProfileContent> {
             if (value != null) {
               setState(() {
                 _selectedMartialArt = value;
+                // Reset graduação quando muda a arte marcial
+                _selectedBeltId = null;
+                _selectedDegree = 0;
               });
             }
           },
@@ -359,11 +367,208 @@ class _EditProfileContentState extends State<_EditProfileContent> {
     );
   }
 
-  Widget _buildSaveButton(ProfileViewModel viewModel, UserProfile profile) {
+  Widget _buildGraduationSelector() {
+    if (_selectedMartialArt == null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariantDark.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          'Selecione uma arte marcial primeiro',
+          style: TextStyle(
+            color: AppColors.textTertiaryDark.withValues(alpha: 0.7),
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
+    final martialArt = MartialArtsConfig.getByType(_selectedMartialArt!);
+    final belts = martialArt.belts;
+    final selectedBelt = _selectedBeltId != null
+        ? martialArt.getBeltById(_selectedBeltId!)
+        : null;
+
+    return Column(
+      children: [
+        // Seletor de Faixa
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariantDark.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selectedBelt != null
+                  ? selectedBelt.color.withValues(alpha: 0.5)
+                  : AppColors.surfaceVariantDark.withValues(alpha: 0.3),
+              width: selectedBelt != null ? 2 : 1,
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedBeltId,
+              hint: const Text(
+                'Selecione sua faixa',
+                style: TextStyle(color: AppColors.textTertiaryDark),
+              ),
+              isExpanded: true,
+              dropdownColor: AppColors.surfaceDark,
+              icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.primary),
+              items: belts.map((belt) {
+                return DropdownMenuItem(
+                  value: belt.id,
+                  child: Row(
+                    children: [
+                      // Mini representação da faixa
+                      _buildMiniBeltPreview(belt),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          belt.name,
+                          style: const TextStyle(
+                            color: AppColors.textPrimaryDark,
+                          ),
+                        ),
+                      ),
+                      if (belt.maxDegrees > 0)
+                        Text(
+                          '(${belt.maxDegrees} graus)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textTertiaryDark.withValues(alpha: 0.7),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedBeltId = value;
+                  _selectedDegree = 0; // Reset grau quando muda faixa
+                });
+              },
+            ),
+          ),
+        ),
+
+        // Seletor de Grau (se a faixa tiver graus)
+        if (selectedBelt != null && selectedBelt.maxDegrees > 0) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariantDark.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.surfaceVariantDark.withValues(alpha: 0.3),
+              ),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: _selectedDegree,
+                isExpanded: true,
+                dropdownColor: AppColors.surfaceDark,
+                icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.primary),
+                items: List.generate(selectedBelt.maxDegrees + 1, (index) {
+                  return DropdownMenuItem(
+                    value: index,
+                    child: Row(
+                      children: [
+                        if (index > 0) ...[
+                          ...List.generate(
+                            index,
+                            (_) => Container(
+                              width: 8,
+                              height: 20,
+                              margin: const EdgeInsets.only(right: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.accent,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        Text(
+                          index == 0 ? 'Sem grau' : '$index° grau',
+                          style: const TextStyle(
+                            color: AppColors.textPrimaryDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedDegree = value;
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+
+        // Checkbox de aparadores (apenas para faixa preta sem graus)
+        if (selectedBelt != null && 
+            selectedBelt.tipColor != null && 
+            _selectedDegree == 0) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariantDark.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.surfaceVariantDark.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Checkbox(
+                  value: _hasAparadores,
+                  onChanged: (value) {
+                    setState(() {
+                      _hasAparadores = value ?? false;
+                    });
+                  },
+                  activeColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.textSecondaryDark),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _hasAparadores = !_hasAparadores;
+                      });
+                    },
+                    child: const Text(
+                      'Tenho aparadores na faixa',
+                      style: TextStyle(
+                        color: AppColors.textPrimaryDark,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSaveButton(ProfileService profileService, UserProfile profile) {
     return SizedBox(
       height: 56,
       child: ElevatedButton(
-        onPressed: _isSaving ? null : () => _saveProfile(viewModel, profile),
+        onPressed: _isSaving ? null : () => _saveProfile(profileService, profile),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
@@ -465,7 +670,7 @@ class _EditProfileContentState extends State<_EditProfileContent> {
   }
 
   Future<void> _saveProfile(
-      ProfileViewModel viewModel, UserProfile profile) async {
+      ProfileService profileService, UserProfile profile) async {
     setState(() {
       _isSaving = true;
     });
@@ -473,7 +678,20 @@ class _EditProfileContentState extends State<_EditProfileContent> {
     try {
       // Atualiza foto se selecionada
       if (_selectedPhoto != null) {
-        await viewModel.updatePhoto.execute(_selectedPhoto!);
+        await profileService.updatePhoto(_selectedPhoto!);
+      }
+
+      // Prepara graduação se owner e faixa selecionada
+      UserGraduation? graduation = profile.graduation;
+      if (profile.isOwner && _selectedBeltId != null) {
+        graduation = UserGraduation(
+          beltId: _selectedBeltId!,
+          degree: _selectedDegree,
+          promotionDate: DateTime.now(),
+          classesAtCurrentBelt: profile.graduation?.classesAtCurrentBelt ?? 0,
+          // hasAparadores só é relevante quando graus = 0, senão sempre tem
+          hasAparadores: _selectedDegree == 0 ? _hasAparadores : null,
+        );
       }
 
       // Atualiza perfil
@@ -483,9 +701,10 @@ class _EditProfileContentState extends State<_EditProfileContent> {
         instructorName: _instructorController.text.trim(),
         weightCategory: _weightController.text.trim(),
         martialArtType: _selectedMartialArt,
+        graduation: graduation,
       );
 
-      final result = await viewModel.updateProfile.execute(updatedProfile);
+      final result = await profileService.updateProfile(updatedProfile);
 
       if (mounted) {
         result.fold(
@@ -515,6 +734,74 @@ class _EditProfileContentState extends State<_EditProfileContent> {
         });
       }
     }
+  }
+
+  /// Constrói uma mini representação visual da faixa com ponteira preta (se aplicável)
+  Widget _buildMiniBeltPreview(Belt belt) {
+    const double width = 48;
+    const double height = 16;
+
+    if (belt.hasBlackTip) {
+      // Faixa com ponteira (estilo BJJ)
+      final tipColor = belt.tipColor ?? Colors.black;
+      return Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(3),
+          border: belt.color == Colors.white
+              ? Border.all(color: Colors.grey.shade400, width: 0.5)
+              : null,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: Row(
+            children: [
+              // Corpo da faixa
+              Expanded(
+                flex: 7,
+                child: belt.secondaryColor != null
+                    ? Row(
+                        children: List.generate(6, (index) {
+                          return Expanded(
+                            child: Container(
+                              color: index.isEven ? belt.color : belt.secondaryColor,
+                            ),
+                          );
+                        }),
+                      )
+                    : Container(color: belt.color),
+              ),
+              // Ponteira (preta ou vermelha)
+              Container(
+                width: 14,
+                color: tipColor,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Faixa sem ponteira preta
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: belt.secondaryColor == null ? belt.color : null,
+        borderRadius: BorderRadius.circular(3),
+        border: belt.color == Colors.white
+            ? Border.all(color: Colors.grey.shade400)
+            : null,
+        gradient: belt.secondaryColor != null
+            ? LinearGradient(
+                colors: [belt.color, belt.secondaryColor!],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              )
+            : null,
+      ),
+    );
   }
 }
 

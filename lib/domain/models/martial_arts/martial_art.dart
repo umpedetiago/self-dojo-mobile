@@ -115,6 +115,8 @@ class MartialArtsConfig {
         order: 0,
         maxDegrees: 4,
         minClassesForPromotion: 0,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       const Belt(
         id: 'bjj_blue',
@@ -124,6 +126,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 100,
         minMonthsAtBelt: 24,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       const Belt(
         id: 'bjj_purple',
@@ -133,6 +137,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 150,
         minMonthsAtBelt: 18,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       const Belt(
         id: 'bjj_brown',
@@ -142,6 +148,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 150,
         minMonthsAtBelt: 12,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       const Belt(
         id: 'bjj_black',
@@ -151,6 +159,9 @@ class MartialArtsConfig {
         maxDegrees: 6,
         minClassesForPromotion: 200,
         minMonthsAtBelt: 36,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
+        tipColor: Color(0xFFC62828), // Ponteira vermelha
       ),
       const Belt(
         id: 'bjj_red_black',
@@ -193,6 +204,8 @@ class MartialArtsConfig {
         order: 0,
         maxDegrees: 4,
         minClassesForPromotion: 0,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       // Faixas Cinza (Cinza Branca, Cinza, Cinza Preta)
       const Belt(
@@ -204,6 +217,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 30,
         minMonthsAtBelt: 4,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       const Belt(
         id: 'bjj_kids_grey',
@@ -213,6 +228,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 40,
         minMonthsAtBelt: 4,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       const Belt(
         id: 'bjj_kids_grey_black',
@@ -223,6 +240,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 50,
         minMonthsAtBelt: 4,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       // Faixas Amarela (Amarela Branca, Amarela, Amarela Preta)
       const Belt(
@@ -234,6 +253,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 60,
         minMonthsAtBelt: 6,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       const Belt(
         id: 'bjj_kids_yellow',
@@ -243,6 +264,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 70,
         minMonthsAtBelt: 6,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       const Belt(
         id: 'bjj_kids_yellow_black',
@@ -253,6 +276,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 80,
         minMonthsAtBelt: 6,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       // Faixas Laranja (Laranja Branca, Laranja, Laranja Preta)
       const Belt(
@@ -264,6 +289,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 90,
         minMonthsAtBelt: 8,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       const Belt(
         id: 'bjj_kids_orange',
@@ -273,6 +300,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 100,
         minMonthsAtBelt: 8,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       const Belt(
         id: 'bjj_kids_orange_black',
@@ -283,6 +312,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 110,
         minMonthsAtBelt: 8,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       // Faixas Verde (Verde Branca, Verde, Verde Preta)
       const Belt(
@@ -294,6 +325,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 120,
         minMonthsAtBelt: 10,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       const Belt(
         id: 'bjj_kids_green',
@@ -303,6 +336,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 130,
         minMonthsAtBelt: 10,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
       const Belt(
         id: 'bjj_kids_green_black',
@@ -313,6 +348,8 @@ class MartialArtsConfig {
         maxDegrees: 4,
         minClassesForPromotion: 140,
         minMonthsAtBelt: 10,
+        hasBlackTip: true,
+        degreeMarkColor: Colors.white,
       ),
     ],
   );
