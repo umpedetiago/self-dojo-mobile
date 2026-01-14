@@ -68,10 +68,19 @@ jobs:
             flutter build apk --debug
           fi
 
-      - name: Setup Firebase CLI
-        uses: w9jds/setup-firebase@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          node-version: '20'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate Firebase
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > $HOME/firebase-service-account.json
+          export GOOGLE_APPLICATION_CREDENTIALS=$HOME/firebase-service-account.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/firebase-service-account.json" >> $GITHUB_ENV
 
       - name: Distribute to Firebase App Distribution
         run: |
@@ -109,10 +118,19 @@ jobs:
       - name: Build IPA
         run: flutter build ipa
 
-      - name: Setup Firebase CLI
-        uses: w9jds/setup-firebase@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          node-version: '20'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate Firebase
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > $HOME/firebase-service-account.json
+          export GOOGLE_APPLICATION_CREDENTIALS=$HOME/firebase-service-account.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/firebase-service-account.json" >> $GITHUB_ENV
 
       - name: Distribute to Firebase App Distribution
         run: |
