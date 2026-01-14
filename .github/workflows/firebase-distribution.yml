@@ -69,9 +69,8 @@ jobs:
           fi
 
       - name: Setup Firebase CLI
-        uses: FirebaseExtended/action-hosting-deploy@v0
+        uses: w9jds/setup-firebase@v1
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
 
       - name: Distribute to Firebase App Distribution
@@ -111,9 +110,8 @@ jobs:
         run: flutter build ipa
 
       - name: Setup Firebase CLI
-        uses: FirebaseExtended/action-hosting-deploy@v0
+        uses: w9jds/setup-firebase@v1
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
 
       - name: Distribute to Firebase App Distribution

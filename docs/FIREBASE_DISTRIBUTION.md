@@ -125,15 +125,19 @@ O projeto inclui um workflow do GitHub Actions para distribuição automática.
 
 1. **Obter Service Account do Firebase**
    - Acesse [Firebase Console](https://console.firebase.google.com/)
-   - Vá em **Project Settings** > **Service Accounts**
+   - Selecione o projeto `self-dojo-mobile`
+   - Vá em **Project Settings** (ícone de engrenagem) > **Service Accounts**
    - Clique em **Generate new private key**
-   - Salve o JSON gerado
+   - **IMPORTANTE**: Salve o JSON gerado em local seguro (você não poderá baixá-lo novamente)
 
 2. **Adicionar Secret no GitHub**
-   - Vá em **Settings** > **Secrets and variables** > **Actions**
+   - No repositório, vá em **Settings** > **Secrets and variables** > **Actions**
    - Clique em **New repository secret**
-   - Nome: `FIREBASE_SERVICE_ACCOUNT`
-   - Valor: Cole o conteúdo do JSON do Service Account
+   - **Name**: `FIREBASE_SERVICE_ACCOUNT`
+   - **Secret**: Cole o conteúdo **COMPLETO** do JSON do Service Account (incluindo todas as chaves e valores)
+   - Clique em **Add secret**
+
+   ⚠️ **Atenção**: O JSON deve ser colado como uma string única, não como objeto JSON formatado.
 
 ### Uso do Workflow
 
@@ -170,6 +174,17 @@ Isso acionará automaticamente a distribuição ao fazer push.
 
 ## 🔍 Troubleshooting
 
+### Erro: "Input required and not supplied: firebaseServiceAccount"
+
+Este erro ocorre quando o secret `FIREBASE_SERVICE_ACCOUNT` não está configurado no GitHub.
+
+**Solução:**
+1. Siga os passos em [Configuração Inicial](#configuração-inicial) acima
+2. Certifique-se de que o secret foi adicionado corretamente:
+   - Nome exato: `FIREBASE_SERVICE_ACCOUNT` (case-sensitive)
+   - Valor: JSON completo do Service Account (uma linha única)
+3. Verifique se o secret está visível em **Settings** > **Secrets and variables** > **Actions**
+
 ### Erro: "Firebase CLI not found"
 ```bash
 npm install -g firebase-tools
@@ -190,6 +205,11 @@ firebase login
 - Verifique se há erros de compilação: `flutter analyze`
 - Para Android, verifique se o `google-services.json` está correto
 - Para iOS, verifique se os certificados estão configurados
+
+### Erro: "Invalid service account"
+- Verifique se o JSON do Service Account está completo
+- Certifique-se de que copiou todo o conteúdo do arquivo JSON
+- O JSON deve começar com `{` e terminar com `}`
 
 ### Testadores não recebem email
 - Verifique se os emails estão corretos no grupo
