@@ -910,6 +910,10 @@ class _ApproveRequestSheetState extends State<_ApproveRequestSheet> {
   Future<void> _approveAndEnroll() async {
     setState(() => _isLoading = true);
 
+    // Lê os repositórios antes das operações assíncronas
+    final studentsRepo = context.read<StudentsRepository>();
+    final academyViewModel = context.read<AcademyViewModel>();
+
     try {
       // Primeiro aprova a solicitação
       final approveResult = await widget.viewModel.approveRequest
@@ -932,8 +936,6 @@ class _ApproveRequestSheetState extends State<_ApproveRequestSheet> {
       }
 
       // Matricula nas modalidades selecionadas
-      final studentsRepo = context.read<StudentsRepository>();
-      final academyViewModel = context.read<AcademyViewModel>();
 
       for (final entry in _selectedModalities.entries) {
         if (entry.value) {

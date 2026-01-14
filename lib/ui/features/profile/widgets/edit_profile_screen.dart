@@ -38,6 +38,8 @@ class _EditProfileContentState extends State<_EditProfileContent> {
   int _selectedDegree = 0;
   bool _hasAparadores = false;
   File? _selectedPhoto;
+  String? _uploadedPhotoUrl; // URL da foto após upload
+  bool _isUploadingPhoto = false; // Indica se está fazendo upload
   bool _isSaving = false;
   bool _initialized = false;
 
@@ -230,11 +232,14 @@ class _EditProfileContentState extends State<_EditProfileContent> {
   }
 
   Widget _buildPhotoSection(UserProfile profile) {
-    final hasPhoto = profile.photoUrl != null || _selectedPhoto != null;
+    final profileService = context.watch<ProfileService>();
+    final hasPhoto = profile.photoUrl != null || 
+                     _uploadedPhotoUrl != null || 
+                     _selectedPhoto != null;
 
     return Center(
       child: GestureDetector(
-        onTap: _pickImage,
+        onTap: () => _pickImage(profileService),
         child: Stack(
           children: [
             Container(
@@ -243,17 +248,22 @@ class _EditProfileContentState extends State<_EditProfileContent> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: !hasPhoto ? AppColors.primaryGradient : null,
-                image: _selectedPhoto != null
+                image: _uploadedPhotoUrl != null
                     ? DecorationImage(
-                        image: FileImage(_selectedPhoto!),
+                        image: NetworkImage(_uploadedPhotoUrl!),
                         fit: BoxFit.cover,
                       )
-                    : profile.photoUrl != null
+                    : _selectedPhoto != null
                         ? DecorationImage(
-                            image: NetworkImage(profile.photoUrl!),
+                            image: FileImage(_selectedPhoto!),
                             fit: BoxFit.cover,
                           )
-                        : null,
+                        : profile.photoUrl != null
+                            ? DecorationImage(
+                                image: NetworkImage(profile.photoUrl!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
                 boxShadow: [
                   BoxShadow(
                     color: AppColors.primary.withValues(alpha: 0.3),
@@ -262,13 +272,20 @@ class _EditProfileContentState extends State<_EditProfileContent> {
                   ),
                 ],
               ),
-              child: !hasPhoto
-                  ? const Icon(
-                      Icons.person,
-                      size: 48,
-                      color: Colors.white,
+              child: _isUploadingPhoto
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 3,
+                      ),
                     )
-                  : null,
+                  : !hasPhoto
+                      ? const Icon(
+                          Icons.person,
+                          size: 48,
+                          color: Colors.white,
+                        )
+                      : null,
             ),
             Positioned(
               bottom: 0,
@@ -597,7 +614,7 @@ class _EditProfileContentState extends State<_EditProfileContent> {
     );
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage(ProfileService profileService) async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       backgroundColor: AppColors.surfaceDark,
@@ -663,10 +680,59 @@ class _EditProfileContentState extends State<_EditProfileContent> {
     );
 
     if (picked != null) {
+      final photoFile = File(picked.path);
       setState(() {
-        _selectedPhoto = File(picked.path);
+        _selectedPhoto = photoFile;
+        _uploadedPhotoUrl = null; // Reseta URL anterior
+        _isUploadingPhoto = true;
       });
+
+      // Faz upload imediatamente após selecionar a imagem
+      await _uploadPhoto(profileService);
     }
+  }
+
+  /// Faz upload da foto selecionada
+  Future<void> _uploadPhoto(ProfileService profileService) async {
+    if (_selectedPhoto == null) return;
+
+    final result = await profileService.updatePhoto(_selectedPhoto!);
+    
+    setState(() {
+      _isUploadingPhoto = false;
+    });
+
+    result.fold(
+      onSuccess: (url) {
+        setState(() {
+          _uploadedPhotoUrl = url;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Foto carregada com sucesso!'),
+              backgroundColor: AppColors.success,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+      onFailure: (failure) {
+        setState(() {
+          _selectedPhoto = null; // Remove foto se upload falhar
+          _uploadedPhotoUrl = null;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erro ao fazer upload da foto: ${failure.message}'),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      },
+    );
   }
 
   Future<void> _saveProfile(
@@ -676,9 +742,16 @@ class _EditProfileContentState extends State<_EditProfileContent> {
     });
 
     try {
-      // Atualiza foto se selecionada
-      if (_selectedPhoto != null) {
-        await profileService.updatePhoto(_selectedPhoto!);
+      // Se há foto selecionada mas ainda não foi feito upload, faz upload agora
+      if (_selectedPhoto != null && _uploadedPhotoUrl == null && !_isUploadingPhoto) {
+        await _uploadPhoto(profileService);
+        // Se o upload falhou, não continua salvando
+        if (_uploadedPhotoUrl == null) {
+          setState(() {
+            _isSaving = false;
+          });
+          return;
+        }
       }
 
       // Prepara graduação se owner e faixa selecionada
@@ -695,6 +768,17 @@ class _EditProfileContentState extends State<_EditProfileContent> {
       }
 
       // Atualiza perfil
+      // Prioridade: _uploadedPhotoUrl > profile.photoUrl (do ProfileService que já foi atualizado)
+      final photoUrlToSave = _uploadedPhotoUrl ?? profileService.profile.photoUrl;
+      
+      debugPrint('[EditProfileScreen] ===== Salvando Perfil =====');
+      debugPrint('[EditProfileScreen] _uploadedPhotoUrl: $_uploadedPhotoUrl');
+      debugPrint('[EditProfileScreen] profile.photoUrl (original): ${profile.photoUrl}');
+      debugPrint('[EditProfileScreen] profileService.profile.photoUrl: ${profileService.profile.photoUrl}');
+      debugPrint('[EditProfileScreen] photoUrlToSave: $photoUrlToSave');
+      
+      // Sempre inclui photoUrl no copyWith se tiver valor
+      // O copyWith usa photoUrl ?? this.photoUrl, então se passar null, mantém o atual
       final updatedProfile = profile.copyWith(
         displayName: _nameController.text.trim(),
         academyName: _academyController.text.trim(),
@@ -702,13 +786,20 @@ class _EditProfileContentState extends State<_EditProfileContent> {
         weightCategory: _weightController.text.trim(),
         martialArtType: _selectedMartialArt,
         graduation: graduation,
+        photoUrl: photoUrlToSave, // Passa a URL (pode ser null, mas copyWith mantém se for null)
       );
 
+      debugPrint('[EditProfileScreen] updatedProfile.photoUrl: ${updatedProfile.photoUrl}');
+      debugPrint('[EditProfileScreen] ===========================');
+      
       final result = await profileService.updateProfile(updatedProfile);
 
       if (mounted) {
         result.fold(
           onSuccess: (_) {
+            // Recarrega o perfil para garantir que a foto está atualizada
+            profileService.refresh();
+            
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Perfil atualizado com sucesso!'),

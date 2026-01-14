@@ -28,7 +28,7 @@ abstract class StudentsRepository {
   /// Registra check-in do aluno
   Future<Result<void>> checkIn({
     required String studentModalityId,
-    required String academyId,
+    String? classScheduleId,
     String? classType,
     String? notes,
   });
@@ -60,11 +60,21 @@ class CheckInRecord {
     required this.checkedInAt,
     this.classType,
     this.notes,
+    this.classScheduleId,
+    this.scheduleStartTime,
+    this.scheduleEndTime,
+    this.scheduleDayOfWeek,
+    this.modalityType,
   });
 
   final String id;
   final DateTime checkedInAt;
   final String? classType;
   final String? notes;
+  final String? classScheduleId;
+  final String? scheduleStartTime; // Formato HH:mm
+  final String? scheduleEndTime; // Formato HH:mm
+  final int? scheduleDayOfWeek;
+  final String? modalityType; // Nome da modalidade
 }
 

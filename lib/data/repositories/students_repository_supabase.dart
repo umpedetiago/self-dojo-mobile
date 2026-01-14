@@ -99,14 +99,14 @@ class StudentsRepositorySupabase implements StudentsRepository {
   @override
   Future<Result<void>> checkIn({
     required String studentModalityId,
-    required String academyId,
+    String? classScheduleId,
     String? classType,
     String? notes,
   }) async {
     try {
       await _supabaseService.createCheckIn({
         'student_modality_id': studentModalityId,
-        'academy_id': academyId,
+        if (classScheduleId != null) 'class_schedule_id': classScheduleId,
         'class_type': classType,
         'notes': notes,
         'checked_in_at': DateTime.now().toIso8601String(),
@@ -131,11 +131,19 @@ class StudentsRepositorySupabase implements StudentsRepository {
       );
 
       final records = checkIns.map((c) {
+        final schedule = c['class_schedules'] as Map<String, dynamic>?;
+        final modality = schedule?['academy_modalities'] as Map<String, dynamic>?;
+        
         return CheckInRecord(
           id: c['id'] as String,
           checkedInAt: DateTime.parse(c['checked_in_at'] as String),
           classType: c['class_type'] as String?,
           notes: c['notes'] as String?,
+          classScheduleId: schedule?['id'] as String?,
+          scheduleStartTime: schedule?['start_time'] as String?,
+          scheduleEndTime: schedule?['end_time'] as String?,
+          scheduleDayOfWeek: schedule?['day_of_week'] as int?,
+          modalityType: modality?['martial_art_type'] as String?,
         );
       }).toList();
 

@@ -1079,7 +1079,7 @@ class _ModalitySection extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Próximo: ${nextDegree}º grau',
+                    'Próximo: $nextDegreeº grau',
                     style: TextStyle(
                       color: currentBelt.color,
                       fontWeight: FontWeight.w500,
@@ -1408,7 +1408,7 @@ class _ModalitySection extends StatelessWidget {
     final String promotionTitle =
         isDegreePromotion ? 'Promover Grau' : 'Promover Faixa';
     final String promotionDescription = isDegreePromotion
-        ? 'Promover para ${selectedDegree}º grau da ${currentBelt.name}'
+        ? 'Promover para $selectedDegreeº grau da ${currentBelt.name}'
         : 'Promover para ${nextBelt!.name}';
 
     showDialog(
@@ -1520,7 +1520,7 @@ class _ModalitySection extends StatelessWidget {
                   result.fold(
                     onSuccess: (_) {
                       final successMessage = isDegreePromotion
-                          ? '${student.name} promovido para ${selectedDegree}º grau!'
+                          ? '${student.name} promovido para $selectedDegreeº grau!'
                           : '${student.name} promovido para ${targetBelt.name}!';
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(

@@ -272,29 +272,55 @@ class _HomeContent extends StatelessWidget {
                   icon: Icons.qr_code_scanner,
                   label: 'Check-in',
                   color: AppColors.secondary,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Check-in em desenvolvimento'),
-                        backgroundColor: AppColors.warning,
-                      ),
-                    );
-                  },
+                  onTap: () => context.push('/checkin'),
                 ),
               ),
             ],
           ),
-          // Botão adicional para owner: buscar academia também
+          // Segunda linha de ações (se for aluno com academia)
+          if (hasAcademy && !isOwner)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildQuickActionButton(
+                      icon: Icons.history,
+                      label: 'Histórico',
+                      color: AppColors.accent,
+                      onTap: () => context.push('/checkin/history'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (!isOwner && !hasAcademy)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildQuickActionButton(
+                      icon: Icons.add_business,
+                      label: 'Criar Academia',
+                      color: AppColors.accent,
+                      onTap: () => context.push('/academy/create'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Botão adicional para owner: buscar academia também
+          if (isOwner)
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: SizedBox(
                 width: double.infinity,
                 child: _buildQuickActionButton(
-                  icon: Icons.add_business,
-                  label: 'Criar Academia',
+                  icon: Icons.search,
+                  label: 'Buscar Academia',
                   color: AppColors.accent,
-                  onTap: () => context.push('/academy/create'),
+                  onTap: () => context.push('/academy/search'),
                 ),
               ),
             ),

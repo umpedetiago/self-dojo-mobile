@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:self_dojo_mobile/core/utils/result.dart';
+import 'package:flutter/foundation.dart';
 
 /// Serviço para interação com o Supabase
 class SupabaseService {
@@ -35,7 +35,19 @@ class SupabaseService {
 
   /// Atualiza usuário
   Future<void> updateUser(String id, Map<String, dynamic> data) async {
-    await _client.from('users').update(data).eq('id', id);
+    debugPrint('[SupabaseService] updateUser - ID: $id, Data: $data');
+    try {
+      final response = await _client
+          .from('users')
+          .update(data)
+          .eq('id', id)
+          .select();
+      debugPrint('[SupabaseService] ✅ Usuário atualizado. Resposta: $response');
+    } catch (e, stackTrace) {
+      debugPrint('[SupabaseService] ❌ ERRO ao atualizar usuário: $e');
+      debugPrint('[SupabaseService] StackTrace: $stackTrace');
+      rethrow;
+    }
   }
 
   // ============================================
@@ -528,7 +540,18 @@ class SupabaseService {
   }) async {
     var query = _client
         .from('check_ins')
-        .select()
+        .select('''
+          *,
+          class_schedules (
+            id,
+            start_time,
+            end_time,
+            day_of_week,
+            academy_modalities (
+              martial_art_type
+            )
+          )
+        ''')
         .eq('student_modality_id', studentModalityId)
         .order('checked_in_at', ascending: false);
 
@@ -548,11 +571,148 @@ class SupabaseService {
     required File file,
   }) async {
     try {
-      await _client.storage.from(bucket).upload(path, file);
+      debugPrint('[SupabaseService] Iniciando upload: bucket=$bucket, path=$path');
+      
+      // Verifica se o arquivo existe
+      if (!await file.exists()) {
+        debugPrint('[SupabaseService] ERRO: Arquivo não encontrado: ${file.path}');
+        return Result.failure(
+          Failure(message: 'Arquivo não encontrado: ${file.path}'),
+        );
+      }
+
+      // Verifica o tamanho do arquivo (limite de 5MB)
+      final fileSize = await file.length();
+      debugPrint('[SupabaseService] Tamanho do arquivo: ${(fileSize / 1024).toStringAsFixed(2)} KB');
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (fileSize > maxSize) {
+        debugPrint('[SupabaseService] ERRO: Arquivo muito grande: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB');
+        return Result.failure(
+          Failure(
+            message: 'Arquivo muito grande. Tamanho máximo: 5MB',
+          ),
+        );
+      }
+
+      // Verifica se o bucket existe (opcional - pode falhar por permissões)
+      // Se falhar, continua mesmo assim pois o upload vai falhar se o bucket não existir
+      try {
+        final buckets = await _client.storage.listBuckets();
+        final bucketExists = buckets.any((b) => b.name == bucket);
+        if (!bucketExists) {
+          debugPrint('[SupabaseService] AVISO: Bucket "$bucket" não encontrado na lista, mas continuando...');
+          // Não retorna erro aqui, deixa o upload tentar
+          // Se o bucket realmente não existir, o upload vai falhar com erro mais específico
+        } else {
+          debugPrint('[SupabaseService] Bucket "$bucket" encontrado');
+        }
+      } catch (e) {
+        debugPrint('[SupabaseService] AVISO: Não foi possível verificar bucket (pode ser problema de permissão): $e');
+        debugPrint('[SupabaseService] Continuando com o upload mesmo assim...');
+        // Continua mesmo assim, pode ser problema de permissão para listar buckets
+        // O upload vai falhar se o bucket realmente não existir
+      }
+
+      // Faz upload com upsert para sobrescrever arquivos existentes
+      debugPrint('[SupabaseService] Fazendo upload do arquivo...');
+      try {
+        // Tenta fazer upload (se arquivo já existe, vai dar erro)
+        await _client.storage.from(bucket).upload(path, file);
+        debugPrint('[SupabaseService] Upload realizado com sucesso');
+      } on StorageException catch (e) {
+        debugPrint('[SupabaseService] StorageException durante upload: statusCode=${e.statusCode}, message=${e.message}');
+        
+        // Se arquivo já existe (erro 409), tenta remover e fazer upload novamente
+        if (e.statusCode == 409.toString() || e.message.contains('already exists')) {
+          debugPrint('[SupabaseService] Arquivo já existe, tentando remover e re-upload...');
+          try {
+            await _client.storage.from(bucket).remove([path]);
+            await _client.storage.from(bucket).upload(path, file);
+            debugPrint('[SupabaseService] Re-upload realizado com sucesso após remoção');
+          } catch (removeError) {
+            debugPrint('[SupabaseService] ERRO ao remover arquivo existente: $removeError');
+            rethrow;
+          }
+        } else {
+          rethrow;
+        }
+      }
+
+      // Obtém a URL pública do arquivo
       final url = _client.storage.from(bucket).getPublicUrl(path);
+      debugPrint('[SupabaseService] URL pública gerada: $url');
+      
       return Result.success(url);
-    } catch (e) {
-      return Result.failure(Failure(message: 'Erro no upload: $e'));
+    } on StorageException catch (e) {
+      // Erro específico do Storage
+      debugPrint('[SupabaseService] StorageException capturada: statusCode=${e.statusCode}, message=${e.message}');
+      
+      String errorMessage = 'Erro no upload';
+      
+      if (e.statusCode == 401.toString()) {
+        errorMessage = 'Não autenticado. Faça login novamente.';
+      } else if (e.statusCode == 403.toString()) {
+        errorMessage = 'Sem permissão para fazer upload. Verifique as policies do Storage no Supabase.';
+      } else if (e.statusCode == 404.toString()) {
+        errorMessage = 'Bucket "$bucket" não encontrado. Crie o bucket no painel do Supabase.';
+      } else if (e.statusCode == 413.toString()) {
+        errorMessage = 'Arquivo muito grande. Tamanho máximo: 5MB';
+      } else {
+        errorMessage = 'Erro no upload (${e.statusCode}): ${e.message}';
+      }
+      
+      return Result.failure(
+        Failure(
+          message: errorMessage,
+          code: e.statusCode?.toString(),
+        ),
+      );
+    } on HandshakeException catch (e) {
+      // Erro de conexão SSL/TLS
+      debugPrint('[SupabaseService] HandshakeException: $e');
+      return Result.failure(
+        Failure(
+          message: 'Erro de conexão com o servidor. Verifique sua internet e tente novamente.',
+          code: 'handshake_error',
+        ),
+      );
+    } on SocketException catch (e) {
+      // Erro de conexão de rede
+      debugPrint('[SupabaseService] SocketException: $e');
+      return Result.failure(
+        Failure(
+          message: 'Erro de conexão. Verifique sua internet e tente novamente.',
+          code: 'network_error',
+        ),
+      );
+    } on HttpException catch (e) {
+      // Erro HTTP
+      debugPrint('[SupabaseService] HttpException: $e');
+      return Result.failure(
+        Failure(
+          message: 'Erro na comunicação com o servidor: ${e.message}',
+          code: 'http_error',
+        ),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('[SupabaseService] Erro inesperado: $e');
+      debugPrint('[SupabaseService] StackTrace: $stackTrace');
+      
+      // Mensagem mais amigável baseada no tipo de erro
+      String errorMessage = 'Erro no upload';
+      if (e.toString().contains('HandshakeException') || 
+          e.toString().contains('handshake')) {
+        errorMessage = 'Erro de conexão com o servidor. Verifique sua internet e tente novamente.';
+      } else if (e.toString().contains('SocketException') ||
+                 e.toString().contains('network')) {
+        errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.';
+      } else {
+        errorMessage = 'Erro no upload: ${e.toString()}';
+      }
+      
+      return Result.failure(
+        Failure(message: errorMessage),
+      );
     }
   }
 
@@ -574,6 +734,121 @@ class SupabaseService {
   /// Deleta arquivo
   Future<void> deleteFile(String bucket, String path) async {
     await _client.storage.from(bucket).remove([path]);
+  }
+
+  // ============================================
+  // CLASS SCHEDULES (Horários de Aulas)
+  // ============================================
+
+  /// Cria horário de aula
+  Future<Map<String, dynamic>> createClassSchedule(Map<String, dynamic> data) async {
+    final response = await _client
+        .from('class_schedules')
+        .insert(data)
+        .select()
+        .single();
+    return response;
+  }
+
+  /// Busca horários da academia
+  Future<List<Map<String, dynamic>>> getClassSchedules(
+    String academyId, {
+    String? modalityId,
+    int? dayOfWeek,
+    bool? isActive,
+  }) async {
+    var query = _client
+        .from('class_schedules')
+        .select('''
+          *,
+          academy_modalities (
+            id,
+            martial_art_type
+          ),
+          users:instructor_id (
+            id,
+            display_name,
+            photo_url
+          )
+        ''')
+        .eq('academy_id', academyId);
+
+    if (modalityId != null) {
+      query = query.eq('modality_id', modalityId);
+    }
+
+    if (dayOfWeek != null) {
+      query = query.eq('day_of_week', dayOfWeek);
+    }
+
+    if (isActive != null) {
+      query = query.eq('is_active', isActive);
+    }
+
+    final response = await query.order('day_of_week').order('start_time');
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// Busca horário por ID
+  Future<Map<String, dynamic>?> getClassSchedule(String id) async {
+    final response = await _client
+        .from('class_schedules')
+        .select('''
+          *,
+          academy_modalities (
+            id,
+            martial_art_type
+          ),
+          users:instructor_id (
+            id,
+            display_name,
+            photo_url
+          )
+        ''')
+        .eq('id', id)
+        .maybeSingle();
+    return response;
+  }
+
+  /// Atualiza horário de aula
+  Future<void> updateClassSchedule(String id, Map<String, dynamic> data) async {
+    await _client.from('class_schedules').update(data).eq('id', id);
+  }
+
+  /// Deleta horário de aula
+  Future<void> deleteClassSchedule(String id) async {
+    await _client.from('class_schedules').delete().eq('id', id);
+  }
+
+  /// Busca horários disponíveis para check-in (horários ativos do dia atual)
+  Future<List<Map<String, dynamic>>> getAvailableSchedulesForCheckIn(
+    String academyId,
+  ) async {
+    final now = DateTime.now();
+    // DateTime.weekday retorna 1-7 (segunda=1, domingo=7)
+    // Precisamos converter para 0-6 (domingo=0, sábado=6)
+    final currentDayOfWeek = now.weekday == 7 ? 0 : now.weekday;
+    
+    final response = await _client
+        .from('class_schedules')
+        .select('''
+          *,
+          academy_modalities (
+            id,
+            martial_art_type
+          ),
+          users:instructor_id (
+            id,
+            display_name,
+            photo_url
+          )
+        ''')
+        .eq('academy_id', academyId)
+        .eq('day_of_week', currentDayOfWeek)
+        .eq('is_active', true)
+        .order('start_time');
+    
+    return List<Map<String, dynamic>>.from(response);
   }
 }
 

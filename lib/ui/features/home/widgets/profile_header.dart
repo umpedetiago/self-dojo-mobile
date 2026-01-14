@@ -34,10 +34,14 @@ class ProfileHeader extends StatelessWidget {
                     gradient: profile.photoUrl == null
                         ? AppColors.primaryGradient
                         : null,
-                    image: profile.photoUrl != null
+                    image: profile.photoUrl != null && profile.photoUrl!.isNotEmpty
                         ? DecorationImage(
                             image: NetworkImage(profile.photoUrl!),
                             fit: BoxFit.cover,
+                            onError: (exception, stackTrace) {
+                              // Se a imagem falhar ao carregar, mostra as iniciais
+                              // O widget será reconstruído sem a imagem
+                            },
                           )
                         : null,
                     boxShadow: [
@@ -48,7 +52,7 @@ class ProfileHeader extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: profile.photoUrl == null
+                  child: profile.photoUrl == null || profile.photoUrl!.isEmpty
                       ? Center(
                           child: Text(
                             _getInitials(

@@ -102,13 +102,11 @@ class AcademySearchRepositorySupabase implements AcademySearchRepository {
       var user = await _supabaseService.getUserByFirebaseUid(oderId);
       
       // Se o usuário não existe na tabela users, cria um registro básico
-      if (user == null) {
-        user = await _supabaseService.upsertUser({
+      user ??= await _supabaseService.upsertUser({
           'firebase_uid': oderId,
           'email': '', // Será preenchido depois se necessário
           'role': 'student',
         });
-      }
 
       final userId = user['id'] as String;
 

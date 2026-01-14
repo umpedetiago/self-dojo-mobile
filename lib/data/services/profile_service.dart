@@ -108,10 +108,18 @@ class ProfileService extends ChangeNotifier {
 
     result.fold(
       onSuccess: (url) {
+        debugPrint('[ProfileService] ✅ Foto uploadada com sucesso. URL: $url');
+        // Atualiza o perfil local com a nova URL
         _profile = _profile.copyWith(photoUrl: url);
+        debugPrint('[ProfileService] Perfil local atualizado. photoUrl: ${_profile.photoUrl}');
         notifyListeners();
+        
+        // NÃO recarrega do servidor aqui para não perder a URL
+        // O refresh será feito após salvar o perfil completo
       },
-      onFailure: (_) {},
+      onFailure: (failure) {
+        debugPrint('[ProfileService] ❌ Erro no upload da foto: ${failure.message}');
+      },
     );
 
     return result;

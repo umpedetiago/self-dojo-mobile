@@ -15,6 +15,8 @@ import 'package:self_dojo_mobile/data/repositories/students_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/students_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_search_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_search_repository_supabase.dart';
+import 'package:self_dojo_mobile/data/repositories/class_schedule_repository.dart';
+import 'package:self_dojo_mobile/data/repositories/class_schedule_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/services/firebase_auth_service.dart';
 import 'package:self_dojo_mobile/data/services/profile_service.dart';
 import 'package:self_dojo_mobile/data/services/supabase_service.dart';
@@ -95,6 +97,9 @@ class SelfDojoApp extends StatelessWidget {
           create: (ctx) => AcademySearchRepositorySupabase(
             supabaseService: ctx.read<SupabaseService>(),
           ),
+        ),
+        Provider<ClassScheduleRepository>(
+          create: (ctx) => ClassScheduleRepositorySupabase(),
         ),
 
         // Services Globais

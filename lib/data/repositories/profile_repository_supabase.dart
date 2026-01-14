@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:self_dojo_mobile/core/utils/result.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
 import 'package:self_dojo_mobile/data/services/supabase_service.dart';
@@ -56,20 +57,48 @@ class ProfileRepositorySupabase implements ProfileRepository {
   @override
   Future<Result<void>> updateProfile(UserProfile profile) async {
     try {
+      debugPrint('[ProfileRepository] ===== updateProfile =====');
+      debugPrint('[ProfileRepository] photoUrl recebido: ${profile.photoUrl}');
+      
       // Busca o ID do usuário pelo firebase_uid
       final existing = await _supabaseService.getUserByFirebaseUid(profile.id);
 
       if (existing != null) {
+        final mapToUpdate = _profileToMap(profile, includeFirebaseUid: false);
+        debugPrint('[ProfileRepository] Map para update ANTES de garantir photo_url: $mapToUpdate');
+        
+        // GARANTE que photo_url está no map se foi fornecido
+        // Isso é importante porque o _profileToMap pode remover se for null
+        if (profile.photoUrl != null && !mapToUpdate.containsKey('photo_url')) {
+          debugPrint('[ProfileRepository] ⚠️ photo_url não estava no map, adicionando...');
+          mapToUpdate['photo_url'] = profile.photoUrl;
+        }
+        
+        debugPrint('[ProfileRepository] Map para update FINAL: $mapToUpdate');
+        
         await _supabaseService.updateUser(
           existing['id'],
-          _profileToMap(profile, includeFirebaseUid: false),
+          mapToUpdate,
         );
+        
+        // Verifica se foi salvo corretamente
+        final verify = await _supabaseService.getUserByFirebaseUid(profile.id);
+        final savedPhotoUrl = verify?['photo_url'] as String?;
+        debugPrint('[ProfileRepository] ✅ Perfil atualizado. photo_url salvo no banco: $savedPhotoUrl');
+        debugPrint('[ProfileRepository] photo_url esperado: ${profile.photoUrl}');
+        
+        if (profile.photoUrl != null && savedPhotoUrl != profile.photoUrl) {
+          debugPrint('[ProfileRepository] ⚠️ AVISO: photo_url não corresponde!');
+        }
       } else {
+        debugPrint('[ProfileRepository] Usuário não encontrado, criando novo...');
         await _supabaseService.upsertUser(_profileToMap(profile));
       }
 
       return Result.success(null);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('[ProfileRepository] ❌ ERRO ao atualizar perfil: $e');
+      debugPrint('[ProfileRepository] StackTrace: $stackTrace');
       return Result.failure(Failure(message: 'Erro ao atualizar perfil: $e'));
     }
   }
@@ -96,18 +125,55 @@ class ProfileRepositorySupabase implements ProfileRepository {
         file: image,
       );
 
-      return result.fold(
-        onSuccess: (url) async {
-          // Atualiza o perfil com a nova URL
-          final existing = await _supabaseService.getUserByFirebaseUid(userId);
-          if (existing != null) {
-            await _supabaseService
-                .updateUser(existing['id'], {'photo_url': url});
+      if (result.isFailure) {
+        final failure = result as Failure<String>;
+        return Failure<String>(message: failure.message, code: failure.code);
+      }
+
+      final url = (result as Success<String>).data;
+      debugPrint('[ProfileRepository] URL gerada: $url');
+
+      // Atualiza o perfil com a nova URL
+      final existing = await _supabaseService.getUserByFirebaseUid(userId);
+      debugPrint('[ProfileRepository] Usuário encontrado: ${existing != null}');
+      
+      if (existing != null) {
+        final userIdDb = existing['id'] as String;
+        debugPrint('[ProfileRepository] Atualizando usuário ID: $userIdDb com photo_url: $url');
+        
+        try {
+          await _supabaseService.updateUser(userIdDb, {'photo_url': url});
+          debugPrint('[ProfileRepository] ✅ Usuário atualizado com sucesso');
+          
+          // Verifica se foi salvo corretamente
+          final verify = await _supabaseService.getUserByFirebaseUid(userId);
+          final savedUrl = verify?['photo_url'] as String?;
+          debugPrint('[ProfileRepository] URL salva no banco: $savedUrl');
+          
+          if (savedUrl != url) {
+            debugPrint('[ProfileRepository] ⚠️ AVISO: URL não corresponde! Esperado: $url, Encontrado: $savedUrl');
           }
-          return Result.success(url);
-        },
-        onFailure: (failure) => Result.failure(failure),
-      );
+        } catch (e, stackTrace) {
+          debugPrint('[ProfileRepository] ❌ ERRO ao atualizar usuário: $e');
+          debugPrint('[ProfileRepository] StackTrace: $stackTrace');
+          return Result.failure(Failure(message: 'Erro ao salvar URL da foto: $e'));
+        }
+      } else {
+        debugPrint('[ProfileRepository] ⚠️ AVISO: Usuário não encontrado no banco para firebase_uid: $userId');
+        // Tenta criar o usuário se não existir
+        try {
+          await _supabaseService.upsertUser({
+            'firebase_uid': userId,
+            'email': '', // Será atualizado depois
+            'photo_url': url,
+          });
+          debugPrint('[ProfileRepository] ✅ Usuário criado com photo_url');
+        } catch (e) {
+          debugPrint('[ProfileRepository] ❌ ERRO ao criar usuário: $e');
+        }
+      }
+
+      return Result.success(url);
     } catch (e) {
       return Result.failure(Failure(message: 'Erro no upload da imagem: $e'));
     }
@@ -122,7 +188,6 @@ class ProfileRepositorySupabase implements ProfileRepository {
     final map = <String, dynamic>{
       'email': profile.email,
       'display_name': profile.displayName,
-      'photo_url': profile.photoUrl,
       'role': profile.role.name,
       'martial_art_type': profile.martialArtType?.name,
       'legacy_belt_id': profile.graduation?.beltId,
@@ -130,6 +195,21 @@ class ProfileRepositorySupabase implements ProfileRepository {
       'legacy_total_classes': profile.totalClasses,
       'legacy_has_aparadores': profile.graduation?.hasAparadores,
     };
+    
+    // photo_url é sempre incluído (mesmo se for null) para garantir atualização
+    // Se for null, o Supabase não atualiza o campo (comportamento padrão)
+    // Se tiver valor, atualiza o campo
+    if (profile.photoUrl != null) {
+      map['photo_url'] = profile.photoUrl;
+    }
+    // Se for null, não inclui no map para não sobrescrever valor existente
+    // Mas se quiser limpar a foto, pode incluir explicitamente como null
+    
+    debugPrint('[ProfileRepository] _profileToMap - photo_url recebido: ${profile.photoUrl}');
+    debugPrint('[ProfileRepository] _profileToMap - photo_url no map: ${map['photo_url']}');
+    
+    // Remove outros campos null para não sobrescrever valores existentes no banco
+    map.removeWhere((key, value) => value == null);
 
     if (includeFirebaseUid) {
       map['firebase_uid'] = profile.id;

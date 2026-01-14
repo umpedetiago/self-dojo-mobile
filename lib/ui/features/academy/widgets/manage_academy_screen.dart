@@ -174,6 +174,12 @@ class _ManageAcademyContent extends StatelessWidget {
                         onTap: () => context.push('/academy/teachers'),
                       ),
                       _buildMenuItem(
+                        icon: Icons.schedule,
+                        title: 'Horários de Aulas',
+                        subtitle: 'Gerenciar horários e disponibilizar check-in',
+                        onTap: () => context.push('/academy/schedules'),
+                      ),
+                      _buildMenuItem(
                         icon: Icons.edit,
                         title: 'Editar Academia',
                         subtitle: 'Informações da academia',
