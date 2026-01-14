@@ -154,6 +154,7 @@ class BeltConfig extends Equatable {
 /// Modalidade oferecida pela academia
 class AcademyModality extends Equatable {
   const AcademyModality({
+    required this.id,
     required this.type,
     this.masterId,
     this.teacherIds = const [],
@@ -161,6 +162,9 @@ class AcademyModality extends Equatable {
     required this.graduationConfig,
     this.isActive = true,
   });
+
+  /// ID da modalidade na academia
+  final String id;
 
   /// Tipo da arte marcial
   final MartialArtType type;
@@ -199,6 +203,7 @@ class AcademyModality extends Equatable {
   /// Converte para Map (Firestore)
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'type': type.name,
       'masterId': masterId,
       'teacherIds': teacherIds,
@@ -211,6 +216,7 @@ class AcademyModality extends Equatable {
   /// Cria a partir de Map (Firestore)
   factory AcademyModality.fromMap(Map<String, dynamic> map) {
     return AcademyModality(
+      id: map['id'] as String? ?? '',
       type: MartialArtType.values.firstWhere(
         (t) => t.name == map['type'],
         orElse: () => MartialArtType.jiuJitsu,
@@ -232,6 +238,7 @@ class AcademyModality extends Equatable {
 
   /// Copia com alterações
   AcademyModality copyWith({
+    String? id,
     MartialArtType? type,
     String? masterId,
     List<String>? teacherIds,
@@ -240,6 +247,7 @@ class AcademyModality extends Equatable {
     bool? isActive,
   }) {
     return AcademyModality(
+      id: id ?? this.id,
       type: type ?? this.type,
       masterId: masterId ?? this.masterId,
       teacherIds: teacherIds ?? this.teacherIds,
@@ -251,6 +259,7 @@ class AcademyModality extends Equatable {
 
   @override
   List<Object?> get props => [
+        id,
         type,
         masterId,
         teacherIds,

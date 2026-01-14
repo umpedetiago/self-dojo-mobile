@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
-import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
+import 'package:self_dojo_mobile/data/services/profile_service.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/belt.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
 import 'package:self_dojo_mobile/domain/models/user_profile.dart';
@@ -10,11 +10,35 @@ import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dar
 import 'package:self_dojo_mobile/ui/features/home/widgets/belt_display.dart';
 import 'package:self_dojo_mobile/ui/features/home/widgets/profile_header.dart';
 import 'package:self_dojo_mobile/ui/features/home/widgets/stats_card.dart';
-import 'package:self_dojo_mobile/ui/features/profile/view_models/profile_viewmodel.dart';
 
 /// Tela Home principal
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Inicializa o ProfileService com os dados do usuário autenticado
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authViewModel = context.read<AuthViewModel>();
+      final profileService = context.read<ProfileService>();
+      final user = authViewModel.user;
+
+      if (user.id.isNotEmpty) {
+        profileService.init(
+          user.id,
+          email: user.email,
+          displayName: user.displayName,
+          photoUrl: user.photoUrl,
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,14 +51,7 @@ class HomeScreen extends StatelessWidget {
       );
     }
 
-    return ChangeNotifierProvider(
-      create: (ctx) => ProfileViewModel(
-        profileRepository: ctx.read<ProfileRepository>(),
-        userId: userId,
-        authUser: authViewModel.user,
-      ),
-      child: const _HomeContent(),
-    );
+    return const _HomeContent();
   }
 }
 
@@ -43,10 +60,10 @@ class _HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final profileViewModel = context.watch<ProfileViewModel>();
+    final profileService = context.watch<ProfileService>();
     final authViewModel = context.read<AuthViewModel>();
 
-    if (profileViewModel.isLoading) {
+    if (profileService.isLoading) {
       return Scaffold(
         body: Container(
           decoration: _backgroundDecoration,
@@ -57,7 +74,7 @@ class _HomeContent extends StatelessWidget {
       );
     }
 
-    final profile = profileViewModel.profile;
+    final profile = profileService.profile;
     final martialArt = profile.martialArt;
     final currentBelt = profile.currentBelt;
     final nextBelt = profile.nextBelt;
@@ -66,25 +83,34 @@ class _HomeContent extends StatelessWidget {
       body: Container(
         decoration: _backgroundDecoration,
         child: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              // Header com perfil
-              SliverToBoxAdapter(
-                child: ProfileHeader(
-                  profile: profile,
-                  onLogout: () => _showLogoutDialog(context, authViewModel),
-                  onEditProfile: () => context.push('/profile/edit'),
+          child: RefreshIndicator(
+            onRefresh: () => profileService.refresh(),
+            color: AppColors.primary,
+            backgroundColor: AppColors.surfaceDark,
+            child: CustomScrollView(
+              slivers: [
+                // Header com perfil
+                SliverToBoxAdapter(
+                  child: ProfileHeader(
+                    profile: profile,
+                    onLogout: () => _showLogoutDialog(context, authViewModel),
+                    onEditProfile: () => context.push('/profile/edit'),
+                  ),
                 ),
-              ),
 
-              // Faixa atual
+              // Faixa atual (usa modalidade matriculada se disponível, senão legado)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                   child: BeltDisplay(
                     martialArt: martialArt,
                     belt: currentBelt,
-                    degree: profile.graduation?.degree ?? 0,
+                    degree: profile.enrolledModalities.isNotEmpty
+                        ? profile.enrolledModalities.first.graduation.degree
+                        : profile.graduation?.degree ?? 0,
+                    graduation: profile.enrolledModalities.isNotEmpty
+                        ? profile.enrolledModalities.first.graduation
+                        : profile.graduation,
                   ),
                 ),
               ),
@@ -103,7 +129,7 @@ class _HomeContent extends StatelessWidget {
                     StatsCard(
                       icon: Icons.fitness_center,
                       label: 'Total de Aulas',
-                      value: '${profile.totalClasses}',
+                      value: '${profile.totalClassesAll}',
                       color: AppColors.primary,
                     ),
                     StatsCard(
@@ -144,6 +170,15 @@ class _HomeContent extends StatelessWidget {
                 ),
               ),
 
+              // Todas as modalidades matriculadas (se tiver mais de uma)
+              if (profile.enrolledModalities.length > 1)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: _buildEnrolledModalities(profile),
+                  ),
+                ),
+
               // Informações adicionais
               SliverToBoxAdapter(
                 child: Padding(
@@ -152,8 +187,8 @@ class _HomeContent extends StatelessWidget {
                 ),
               ),
 
-              // Histórico de graduações
-              if (profile.graduationHistory.isNotEmpty)
+              // Histórico de graduações (usa modalidade matriculada se disponível, senão legado)
+              if (_hasGraduationHistory(profile))
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -167,6 +202,7 @@ class _HomeContent extends StatelessWidget {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -184,40 +220,110 @@ class _HomeContent extends StatelessWidget {
       );
 
   Widget _buildQuickActions(BuildContext context, UserProfile profile) {
+    // Verifica se é owner
+    final isOwner = profile.isOwner;
+    // Verifica se tem academia vinculada (como aluno)
+    final hasAcademy = profile.academyId != null && profile.academyId!.isNotEmpty;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _buildQuickActionButton(
-              icon: Icons.business,
-              label: profile.isOwner ? 'Minha Academia' : 'Criar Academia',
-              color: AppColors.primary,
-              onTap: () {
-                if (profile.isOwner) {
-                  context.push('/academy/manage');
-                } else {
-                  context.push('/academy/create');
-                }
-              },
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildQuickActionButton(
-              icon: Icons.qr_code_scanner,
-              label: 'Check-in',
-              color: AppColors.secondary,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Check-in em desenvolvimento'),
-                    backgroundColor: AppColors.warning,
+          Row(
+            children: [
+              if (isOwner)
+                Expanded(
+                  child: _buildQuickActionButton(
+                    icon: Icons.business,
+                    label: 'Minha Academia',
+                    color: AppColors.primary,
+                    onTap: () => context.push('/academy/manage'),
                   ),
-                );
-              },
-            ),
+                )
+              else if (hasAcademy)
+                Expanded(
+                  child: _buildQuickActionButton(
+                    icon: Icons.home_work,
+                    label: 'Minha Academia',
+                    color: AppColors.primary,
+                    onTap: () {
+                      // TODO: ir para visualização da academia do aluno
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Visualização da academia em desenvolvimento'),
+                          backgroundColor: AppColors.warning,
+                        ),
+                      );
+                    },
+                  ),
+                )
+              else
+                Expanded(
+                  child: _buildQuickActionButton(
+                    icon: Icons.search,
+                    label: 'Buscar Academia',
+                    color: AppColors.primary,
+                    onTap: () => context.push('/academy/search'),
+                  ),
+                ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickActionButton(
+                  icon: Icons.qr_code_scanner,
+                  label: 'Check-in',
+                  color: AppColors.secondary,
+                  onTap: () => context.push('/checkin'),
+                ),
+              ),
+            ],
           ),
+          // Segunda linha de ações (se for aluno com academia)
+          if (hasAcademy && !isOwner)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildQuickActionButton(
+                      icon: Icons.history,
+                      label: 'Histórico',
+                      color: AppColors.accent,
+                      onTap: () => context.push('/checkin/history'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (!isOwner && !hasAcademy)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildQuickActionButton(
+                      icon: Icons.add_business,
+                      label: 'Criar Academia',
+                      color: AppColors.accent,
+                      onTap: () => context.push('/academy/create'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Botão adicional para owner: buscar academia também
+          if (isOwner)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: _buildQuickActionButton(
+                  icon: Icons.search,
+                  label: 'Buscar Academia',
+                  color: AppColors.accent,
+                  onTap: () => context.push('/academy/search'),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -331,6 +437,11 @@ class _HomeContent extends StatelessWidget {
   }
 
   Widget _buildGraduationHistory(UserProfile profile, MartialArt martialArt) {
+    // Usa histórico da modalidade matriculada se disponível, senão legado
+    final graduationHistory = profile.enrolledModalities.isNotEmpty
+        ? profile.enrolledModalities.first.graduationHistory
+        : profile.graduationHistory;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -352,7 +463,7 @@ class _HomeContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          ...profile.graduationHistory.reversed.take(5).map((history) {
+          ...graduationHistory.reversed.take(5).map((history) {
             final belt = martialArt.getBeltById(history.beltId);
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -447,10 +558,105 @@ class _HomeContent extends StatelessWidget {
     return belt.color;
   }
 
+  /// Verifica se tem histórico de graduações (modalidade matriculada ou legado)
+  bool _hasGraduationHistory(UserProfile profile) {
+    if (profile.enrolledModalities.isNotEmpty) {
+      return profile.enrolledModalities.first.graduationHistory.isNotEmpty;
+    }
+    return profile.graduationHistory.isNotEmpty;
+  }
+
+  /// Exibe todas as modalidades matriculadas do aluno
+  Widget _buildEnrolledModalities(UserProfile profile) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDark.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.surfaceVariantDark.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Minhas Modalidades',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimaryDark,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...profile.enrolledModalities.map((modality) {
+            final martialArt = modality.martialArt;
+            final belt = modality.currentBelt;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: martialArt.primaryColor.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      martialArt.icon,
+                      color: martialArt.primaryColor,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          martialArt.name,
+                          style: const TextStyle(
+                            color: AppColors.textPrimaryDark,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          belt != null
+                              ? '${belt.name}${modality.graduation.degree > 0 ? ' - ${modality.graduation.degree}º grau' : ''}'
+                              : 'Sem graduação',
+                          style: TextStyle(
+                            color: AppColors.textSecondaryDark,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (belt != null)
+                    Container(
+                      width: 40,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: belt.color,
+                        borderRadius: BorderRadius.circular(2),
+                        border: belt.color == Colors.white
+                            ? Border.all(color: Colors.grey.shade400)
+                            : null,
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   void _showLogoutDialog(BuildContext context, AuthViewModel authViewModel) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surfaceDark,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -462,12 +668,14 @@ class _HomeContent extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
+              // Limpa o ProfileService antes de fazer logout
+              context.read<ProfileService>().clear();
               authViewModel.signOut();
             },
             style: ElevatedButton.styleFrom(

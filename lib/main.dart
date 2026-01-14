@@ -2,15 +2,24 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:self_dojo_mobile/core/config/app_router.dart';
+import 'package:self_dojo_mobile/core/config/supabase_config.dart';
 import 'package:self_dojo_mobile/core/theme/app_theme.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_repository.dart';
+import 'package:self_dojo_mobile/data/repositories/academy_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/repositories/auth_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
-import 'package:self_dojo_mobile/data/services/academy_service.dart';
+import 'package:self_dojo_mobile/data/repositories/profile_repository_supabase.dart';
+import 'package:self_dojo_mobile/data/repositories/students_repository.dart';
+import 'package:self_dojo_mobile/data/repositories/students_repository_supabase.dart';
+import 'package:self_dojo_mobile/data/repositories/academy_search_repository.dart';
+import 'package:self_dojo_mobile/data/repositories/academy_search_repository_supabase.dart';
+import 'package:self_dojo_mobile/data/repositories/class_schedule_repository.dart';
+import 'package:self_dojo_mobile/data/repositories/class_schedule_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/services/firebase_auth_service.dart';
-import 'package:self_dojo_mobile/data/services/firestore_service.dart';
-import 'package:self_dojo_mobile/data/services/storage_service.dart';
+import 'package:self_dojo_mobile/data/services/profile_service.dart';
+import 'package:self_dojo_mobile/data/services/supabase_service.dart';
 import 'package:self_dojo_mobile/firebase_options.dart';
 import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
 
@@ -32,9 +41,15 @@ void main() async {
     ),
   );
 
-  // Inicializa Firebase com as opções da plataforma
+  // Inicializa Firebase (apenas para Auth)
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Inicializa Supabase (para Database e Storage)
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.anonKey,
   );
 
   runApp(const SelfDojoApp());
@@ -52,31 +67,45 @@ class SelfDojoApp extends StatelessWidget {
         Provider<FirebaseAuthService>(
           create: (_) => FirebaseAuthService(),
         ),
-        Provider<FirestoreService>(
-          create: (_) => FirestoreService(),
-        ),
-        Provider<StorageService>(
-          create: (_) => StorageService(),
-        ),
-        Provider<AcademyService>(
-          create: (_) => AcademyService(),
+        Provider<SupabaseService>(
+          create: (_) => SupabaseService(),
         ),
 
         // Repositories
+        Provider<ProfileRepository>(
+          create: (ctx) => ProfileRepositorySupabase(
+            supabaseService: ctx.read<SupabaseService>(),
+          ),
+        ),
         Provider<AuthRepository>(
           create: (ctx) => AuthRepositoryImpl(
             authService: ctx.read<FirebaseAuthService>(),
-          ),
-        ),
-        Provider<ProfileRepository>(
-          create: (ctx) => ProfileRepositoryImpl(
-            firestoreService: ctx.read<FirestoreService>(),
-            storageService: ctx.read<StorageService>(),
+            profileRepository: ctx.read<ProfileRepository>(),
           ),
         ),
         Provider<AcademyRepository>(
-          create: (ctx) => AcademyRepositoryImpl(
-            academyService: ctx.read<AcademyService>(),
+          create: (ctx) => AcademyRepositorySupabase(
+            supabaseService: ctx.read<SupabaseService>(),
+          ),
+        ),
+        Provider<StudentsRepository>(
+          create: (ctx) => StudentsRepositorySupabase(
+            supabaseService: ctx.read<SupabaseService>(),
+          ),
+        ),
+        Provider<AcademySearchRepository>(
+          create: (ctx) => AcademySearchRepositorySupabase(
+            supabaseService: ctx.read<SupabaseService>(),
+          ),
+        ),
+        Provider<ClassScheduleRepository>(
+          create: (ctx) => ClassScheduleRepositorySupabase(),
+        ),
+
+        // Services Globais
+        ChangeNotifierProvider<ProfileService>(
+          create: (ctx) => ProfileService(
+            profileRepository: ctx.read<ProfileRepository>(),
           ),
         ),
 

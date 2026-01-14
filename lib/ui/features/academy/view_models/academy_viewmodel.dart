@@ -44,6 +44,9 @@ class AcademyViewModel extends ChangeNotifier {
   int _studentCount = 0;
   int get studentCount => _studentCount;
 
+  int _pendingRequestsCount = 0;
+  int get pendingRequestsCount => _pendingRequestsCount;
+
   // Commands
   late final Command1<Academy, CreateAcademyParams> createAcademy;
   late final Command1<void, Academy> updateAcademy;
@@ -76,6 +79,7 @@ class AcademyViewModel extends ChangeNotifier {
           _academy = academy;
           _watchAcademy(academy.id);
           _loadStudentCount(academy.id);
+          _loadPendingRequestsCount(academy.id);
         }
         _isLoading = false;
         notifyListeners();
@@ -115,6 +119,24 @@ class AcademyViewModel extends ChangeNotifier {
     );
   }
 
+  Future<void> _loadPendingRequestsCount(String academyId) async {
+    final result = await _academyRepository.countPendingRequests(academyId);
+    result.fold(
+      onSuccess: (count) {
+        _pendingRequestsCount = count;
+        notifyListeners();
+      },
+      onFailure: (_) {},
+    );
+  }
+
+  /// Recarrega o contador de solicitações pendentes
+  Future<void> refreshPendingRequestsCount() async {
+    if (_academy.id.isNotEmpty) {
+      await _loadPendingRequestsCount(_academy.id);
+    }
+  }
+
   /// Cria uma nova academia
   Future<Result<Academy>> _createAcademy(CreateAcademyParams params) async {
     final result = await _academyRepository.createAcademy(
@@ -134,15 +156,30 @@ class AcademyViewModel extends ChangeNotifier {
         _academy = academy;
         _watchAcademy(academy.id);
 
-        // Atualiza o perfil do usuário para owner
-        await _profileRepository.updateProfile(
-          UserProfile(
-            id: _userId,
-            email: params.email ?? '',
-            role: UserRole.owner,
-            academyId: academy.id,
-            academyStatus: AcademyStatus.approved,
-          ),
+        // Busca o perfil atual
+        final profileResult = await _profileRepository.getProfile(_userId);
+        await profileResult.fold(
+          onSuccess: (currentProfile) async {
+            // Atualiza o perfil do usuário para owner mantendo outros dados
+            final updatedProfile = currentProfile.copyWith(
+              role: UserRole.owner,
+              academyId: academy.id,
+              academyStatus: AcademyStatus.approved,
+            );
+            await _profileRepository.updateProfile(updatedProfile);
+          },
+          onFailure: (_) async {
+            // Se não encontrou perfil, cria um novo
+            await _profileRepository.saveProfile(
+              UserProfile(
+                id: _userId,
+                email: params.email ?? '',
+                role: UserRole.owner,
+                academyId: academy.id,
+                academyStatus: AcademyStatus.approved,
+              ),
+            );
+          },
         );
       },
       onFailure: (_) {},

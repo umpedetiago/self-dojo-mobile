@@ -1,0 +1,134 @@
+name: Firebase App Distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Plataforma (android/ios)'
+        required: true
+        type: choice
+        options:
+          - android
+          - ios
+      build_type:
+        description: 'Tipo de build'
+        required: true
+        type: choice
+        options:
+          - debug
+          - release
+        default: debug
+      groups:
+        description: 'Grupos de testadores (separados por vírgula)'
+        required: false
+        type: string
+      release_notes:
+        description: 'Notas da release'
+        required: false
+        type: string
+        default: 'Build automático via GitHub Actions'
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - 'android/**'
+      - 'ios/**'
+
+jobs:
+  distribute-android:
+    if: github.event.inputs.platform == 'android' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[distribute android]'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: |
+          if [ "${{ github.event.inputs.build_type }}" == "release" ]; then
+            flutter build apk --release
+          else
+            flutter build apk --debug
+          fi
+
+      - name: Setup Firebase CLI
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+
+      - name: Distribute to Firebase App Distribution
+        run: |
+          BUILD_TYPE="${{ github.event.inputs.build_type || 'debug' }}"
+          APK_PATH="build/app/outputs/flutter-apk/app-$BUILD_TYPE.apk"
+          
+          DISTRIBUTE_CMD="firebase appdistribution:distribute \"$APK_PATH\" --app 1:1055602452052:android:f0a676d51bdded4d2d2fc1"
+          
+          if [ -n "${{ github.event.inputs.groups }}" ]; then
+            DISTRIBUTE_CMD="$DISTRIBUTE_CMD --groups \"${{ github.event.inputs.groups }}\""
+          fi
+          
+          if [ -n "${{ github.event.inputs.release_notes }}" ]; then
+            DISTRIBUTE_CMD="$DISTRIBUTE_CMD --release-notes \"${{ github.event.inputs.release_notes }}\""
+          fi
+          
+          eval $DISTRIBUTE_CMD
+
+  distribute-ios:
+    if: github.event.inputs.platform == 'ios' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[distribute ios]'))
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build IPA
+        run: flutter build ipa
+
+      - name: Setup Firebase CLI
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+
+      - name: Distribute to Firebase App Distribution
+        run: |
+          IPA_PATH="build/ios/ipa/self_dojo_mobile.ipa"
+          
+          DISTRIBUTE_CMD="firebase appdistribution:distribute \"$IPA_PATH\" --app 1:1055602452052:ios:725ec695964c60ab2d2fc1"
+          
+          if [ -n "${{ github.event.inputs.groups }}" ]; then
+            DISTRIBUTE_CMD="$DISTRIBUTE_CMD --groups \"${{ github.event.inputs.groups }}\""
+          fi
+          
+          if [ -n "${{ github.event.inputs.release_notes }}" ]; then
+            DISTRIBUTE_CMD="$DISTRIBUTE_CMD --release-notes \"${{ github.event.inputs.release_notes }}\""
+          fi
+          
+          eval $DISTRIBUTE_CMD
+

@@ -303,17 +303,7 @@ class _GraduationConfigContentState extends State<_GraduationConfigContent> {
         ),
       ),
       child: ExpansionTile(
-        leading: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: belt.color,
-            borderRadius: BorderRadius.circular(6),
-            border: belt.color == Colors.white
-                ? Border.all(color: Colors.grey.shade400)
-                : null,
-          ),
-        ),
+        leading: _buildMiniBeltPreview(belt),
         title: Text(
           belt.name,
           style: const TextStyle(
@@ -543,6 +533,74 @@ class _GraduationConfigContentState extends State<_GraduationConfigContent> {
           ),
         );
       },
+    );
+  }
+
+  /// Constrói uma mini representação visual da faixa com ponteira preta (se aplicável)
+  Widget _buildMiniBeltPreview(Belt belt) {
+    const double width = 48;
+    const double height = 20;
+
+    if (belt.hasBlackTip) {
+      // Faixa com ponteira (estilo BJJ)
+      final tipColor = belt.tipColor ?? Colors.black;
+      return Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          border: belt.color == Colors.white
+              ? Border.all(color: Colors.grey.shade400, width: 0.5)
+              : null,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: Row(
+            children: [
+              // Corpo da faixa
+              Expanded(
+                flex: 7,
+                child: belt.secondaryColor != null
+                    ? Row(
+                        children: List.generate(6, (index) {
+                          return Expanded(
+                            child: Container(
+                              color: index.isEven ? belt.color : belt.secondaryColor,
+                            ),
+                          );
+                        }),
+                      )
+                    : Container(color: belt.color),
+              ),
+              // Ponteira (preta ou vermelha)
+              Container(
+                width: 14,
+                color: tipColor,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Faixa sem ponteira preta
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: belt.secondaryColor == null ? belt.color : null,
+        borderRadius: BorderRadius.circular(4),
+        border: belt.color == Colors.white
+            ? Border.all(color: Colors.grey.shade400)
+            : null,
+        gradient: belt.secondaryColor != null
+            ? LinearGradient(
+                colors: [belt.color, belt.secondaryColor!],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              )
+            : null,
+      ),
     );
   }
 }

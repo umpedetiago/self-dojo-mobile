@@ -30,9 +30,9 @@ extension UserRoleExtension on UserRole {
       case UserRole.teacher:
         return 'Professor';
       case UserRole.modalityMaster:
-        return 'Mestre';
+        return 'Mestre de Modalidade';
       case UserRole.owner:
-        return 'Mestre Principal';
+        return 'Mestre (Dono de Academia)';
     }
   }
 
@@ -46,9 +46,9 @@ extension UserRoleExtension on UserRole {
       case UserRole.teacher:
         return 'Ensina e promove alunos';
       case UserRole.modalityMaster:
-        return 'Responsável por uma modalidade';
+        return 'Responsável por uma modalidade específica';
       case UserRole.owner:
-        return 'Dono e responsável pela academia';
+        return 'Dono e responsável financeiro pela academia';
     }
   }
 

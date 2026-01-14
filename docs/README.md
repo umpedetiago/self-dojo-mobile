@@ -4,6 +4,7 @@ Bem-vindo à documentação do projeto **Self Dojo Mobile**. Este guia contém t
 
 ## 📚 Índice da Documentação
 
+### 📖 Guias Principais
 | Documento | Descrição |
 |-----------|-----------|
 | [Getting Started](./GETTING_STARTED.md) | Configuração inicial do ambiente de desenvolvimento |
@@ -11,6 +12,27 @@ Bem-vindo à documentação do projeto **Self Dojo Mobile**. Este guia contém t
 | [Padrões de Código](./CODING_STANDARDS.md) | Convenções e boas práticas de código |
 | [Gerenciamento de Estado](./STATE_MANAGEMENT.md) | ChangeNotifier, Commands e ViewModels |
 | [Navegação](./NAVIGATION.md) | Sistema de rotas e navegação |
+
+### 🗄️ Backend & Infraestrutura
+| Documento | Descrição |
+|-----------|-----------|
+| [Supabase Setup](./SUPABASE_SETUP.md) | Configuração do backend Supabase (PostgreSQL) |
+| [Modelo de Dados](./ARCH_MODEL.md) | Estrutura de dados e relacionamentos |
+
+### 🎭 Regras de Negócio
+| Documento | Descrição |
+|-----------|-----------|
+| [Sistema de Roles](./ROLES_SYSTEM.md) | Hierarquia de papéis e permissões (Student, Teacher, Owner, etc.) |
+
+### 📊 Planejamento & Progresso
+| Documento | Descrição |
+|-----------|-----------|
+| [Changelog](./CHANGELOG.md) | Histórico de mudanças e estado atual do projeto |
+| [Roadmap](./ROADMAP.md) | Planejamento de sprints e próximos passos |
+
+### 🚀 Deploy & CI/CD
+| Documento | Descrição |
+|-----------|-----------|
 | [Testes](./TESTING.md) | Guia completo de testes |
 | [Deployment](./DEPLOYMENT.md) | Publicação nas lojas (iOS/Android) |
 | [CI/CD](./CI_CD.md) | Integração e entrega contínua |
@@ -45,9 +67,9 @@ flutter run
 - **Gerenciamento de Estado**: ChangeNotifier + Commands
 - **Injeção de Dependência**: Provider
 - **Navegação**: GoRouter
-- **HTTP Client**: Dio
-- **Armazenamento Local**: SharedPreferences / Hive
-- **Imutabilidade**: Freezed
+- **Backend**: Supabase (PostgreSQL + Storage)
+- **Autenticação**: Firebase Auth
+- **Armazenamento de Arquivos**: Supabase Storage
 
 ## 📂 Estrutura de Pastas
 
