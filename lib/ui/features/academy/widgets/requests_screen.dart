@@ -251,6 +251,9 @@ class _RequestsContent extends StatelessWidget {
     JoinRequest request,
     RequestsViewModel viewModel,
   ) {
+    // Obtém o AcademyViewModel antes de abrir o bottom sheet
+    final academyViewModel = context.read<AcademyViewModel>();
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -261,6 +264,7 @@ class _RequestsContent extends StatelessWidget {
       builder: (bottomSheetContext) => _ApproveRequestSheet(
         request: request,
         viewModel: viewModel,
+        academyViewModel: academyViewModel,
         academyModalities: academyModalities,
       ),
     );
@@ -603,11 +607,13 @@ class _ApproveRequestSheet extends StatefulWidget {
   const _ApproveRequestSheet({
     required this.request,
     required this.viewModel,
+    required this.academyViewModel,
     required this.academyModalities,
   });
 
   final JoinRequest request;
   final RequestsViewModel viewModel;
+  final AcademyViewModel academyViewModel;
   final List<MartialArtType> academyModalities;
 
   @override
@@ -910,9 +916,8 @@ class _ApproveRequestSheetState extends State<_ApproveRequestSheet> {
   Future<void> _approveAndEnroll() async {
     setState(() => _isLoading = true);
 
-    // Lê os repositórios antes das operações assíncronas
+    // Lê o repositório antes das operações assíncronas
     final studentsRepo = context.read<StudentsRepository>();
-    final academyViewModel = context.read<AcademyViewModel>();
 
     try {
       // Primeiro aprova a solicitação
@@ -943,7 +948,7 @@ class _ApproveRequestSheetState extends State<_ApproveRequestSheet> {
           final beltId = _selectedBelts[type]!;
 
           // Busca o academy_modality_id
-          final academyModality = academyViewModel.academy.modalities
+          final academyModality = widget.academyViewModel.academy.modalities
               .where((m) => m.type == type)
               .firstOrNull;
 
