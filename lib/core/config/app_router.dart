@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:self_dojo_mobile/data/services/profile_service.dart';
 import 'package:self_dojo_mobile/ui/features/academy/widgets/academy_select_screen.dart';
 import 'package:self_dojo_mobile/ui/features/academy/widgets/class_schedules_screen.dart';
 import 'package:self_dojo_mobile/ui/features/academy/widgets/create_academy_screen.dart';
@@ -87,8 +89,17 @@ class AppRouter {
         currentPath == AppRoutes.register ||
         currentPath == AppRoutes.splash;
 
-    // Se autenticado e em rota de auth, vai para home
+    // Se autenticado e em rota de auth, verifica se é owner para redirecionar
     if (isAuthenticated && isAuthRoute) {
+      try {
+        final profileService = Provider.of<ProfileService>(context, listen: false);
+        if (profileService.profile.isOwner) {
+          // Owner vai direto para seleção de academia (que já faz a verificação de quantas tem)
+          return AppRoutes.selectAcademy;
+        }
+      } catch (_) {
+        // Se não conseguir acessar ProfileService ainda, vai para home normalmente
+      }
       return AppRoutes.home;
     }
 
@@ -128,6 +139,19 @@ class AppRouter {
         // Home
         GoRoute(
           path: AppRoutes.home,
+          redirect: (context, state) {
+            // Se for owner tentando acessar home, redireciona para gestão da academia
+            try {
+              final profileService = Provider.of<ProfileService>(context, listen: false);
+              if (profileService.profile.isOwner) {
+                // Owner vai para seleção de academia (que já faz a verificação de quantas tem)
+                return AppRoutes.selectAcademy;
+              }
+            } catch (_) {
+              // Se não conseguir acessar ProfileService ainda, deixa passar para home
+            }
+            return null;
+          },
           builder: (context, state) => const HomeScreen(),
         ),
 

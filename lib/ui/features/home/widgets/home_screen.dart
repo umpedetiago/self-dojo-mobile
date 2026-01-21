@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
+import 'package:self_dojo_mobile/data/repositories/academy_repository.dart';
 import 'package:self_dojo_mobile/data/services/profile_service.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/belt.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
@@ -64,13 +65,14 @@ class _HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<_HomeContent> {
   bool _handledOwnerRedirect = false;
+  bool _isCheckingAcademies = false;
 
   @override
   Widget build(BuildContext context) {
     final profileService = context.watch<ProfileService>();
     final authViewModel = context.read<AuthViewModel>();
 
-    if (profileService.isLoading) {
+    if (profileService.isLoading || _isCheckingAcademies) {
       return Scaffold(
         body: Container(
           decoration: _backgroundDecoration,
@@ -83,13 +85,40 @@ class _HomeContentState extends State<_HomeContent> {
 
     final profile = profileService.profile;
 
-    // Owner: ao entrar na home, redireciona para seleção de academia (1 -> entra direto, 2+ -> lista)
+    // Owner: garante que não fique na home; direciona para gestão/seleção conforme quantidade
     if (profile.isOwner && !_handledOwnerRedirect) {
       _handledOwnerRedirect = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.go('/academy/select');
+      _isCheckingAcademies = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+
+        final ownerId = authViewModel.user.id;
+        if (ownerId.isEmpty) return;
+
+        final academyRepository = context.read<AcademyRepository>();
+        final result = await academyRepository.getOwnerAcademies(ownerId);
+        result.fold(
+          onSuccess: (academies) {
+            if (!mounted) return;
+            if (academies.isEmpty) {
+              context.go('/academy/create');
+            } else if (academies.length == 1) {
+              context.go('/academy/manage/${academies.first.id}');
+            } else {
+              context.go('/academy/select');
+            }
+          },
+          onFailure: (_) {
+            if (mounted) {
+              setState(() {
+                _isCheckingAcademies = false;
+              });
+            }
+          },
+        );
       });
     }
+
     final martialArt = profile.martialArt;
     final currentBelt = profile.currentBelt;
     final nextBelt = profile.nextBelt;
