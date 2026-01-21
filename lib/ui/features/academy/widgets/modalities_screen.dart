@@ -245,79 +245,81 @@ class _ManageTeachersSheetState extends State<_ManageTeachersSheet> {
               )
             else
               Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: _members.length,
-                  separatorBuilder: (_, __) => const Divider(
-                    color: Color(0x22FFFFFF),
-                    height: 1,
-                  ),
-                  itemBuilder: (context, index) {
-                    final member = _members[index];
-                    final user = member['users'] as Map<String, dynamic>?;
-                    final userId = member['user_id'] as String?;
-                    if (userId == null) return const SizedBox.shrink();
+                child: RadioGroup<String>(
+                  groupValue: _masterUserId,
+                  onChanged: (value) {
+                    setState(() {
+                      _masterUserId = value;
+                    });
+                  },
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _members.length,
+                    separatorBuilder: (_, __) => const Divider(
+                      color: Color(0x22FFFFFF),
+                      height: 1,
+                    ),
+                    itemBuilder: (context, index) {
+                      final member = _members[index];
+                      final user = member['users'] as Map<String, dynamic>?;
+                      final userId = member['user_id'] as String?;
+                      if (userId == null) return const SizedBox.shrink();
 
-                    final name =
-                        user?['display_name'] as String? ?? 'Sem nome';
-                    final email = user?['email'] as String? ?? '';
-                    final isSelected = _selectedUserIds.contains(userId);
+                      final name =
+                          user?['display_name'] as String? ?? 'Sem nome';
+                      final email = user?['email'] as String? ?? '';
+                      final isSelected = _selectedUserIds.contains(userId);
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CheckboxListTile(
-                          value: isSelected,
-                          onChanged: (value) {
-                            setState(() {
-                              if (value == true) {
-                                _selectedUserIds.add(userId);
-                              } else {
-                                _selectedUserIds.remove(userId);
-                                if (_masterUserId == userId) {
-                                  _masterUserId = null;
-                                }
-                              }
-                            });
-                          },
-                          activeColor: AppColors.primary,
-                          title: Text(
-                            name,
-                            style: const TextStyle(
-                              color: AppColors.textPrimaryDark,
-                            ),
-                          ),
-                          subtitle: email.isNotEmpty
-                              ? Text(
-                                  email,
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondaryDark,
-                                    fontSize: 12,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        if (_selectedUserIds.contains(userId))
-                          RadioListTile<String>(
-                            value: userId,
-                            groupValue: _masterUserId,
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CheckboxListTile(
+                            value: isSelected,
                             onChanged: (value) {
                               setState(() {
-                                _masterUserId = value;
+                                if (value == true) {
+                                  _selectedUserIds.add(userId);
+                                } else {
+                                  _selectedUserIds.remove(userId);
+                                  if (_masterUserId == userId) {
+                                    _masterUserId = null;
+                                  }
+                                }
                               });
                             },
-                            activeColor: AppColors.secondary,
-                            title: const Text(
-                              'Definir como Mestre da modalidade',
-                              style: TextStyle(
-                                color: AppColors.textSecondaryDark,
-                                fontSize: 12,
+                            activeColor: AppColors.primary,
+                            title: Text(
+                              name,
+                              style: const TextStyle(
+                                color: AppColors.textPrimaryDark,
                               ),
                             ),
+                            subtitle: email.isNotEmpty
+                                ? Text(
+                                    email,
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondaryDark,
+                                      fontSize: 12,
+                                    ),
+                                  )
+                                : null,
                           ),
-                      ],
-                    );
-                  },
+                          if (_selectedUserIds.contains(userId))
+                            RadioListTile<String>(
+                              value: userId,
+                              activeColor: AppColors.secondary,
+                              title: const Text(
+                                'Definir como Mestre da modalidade',
+                                style: TextStyle(
+                                  color: AppColors.textSecondaryDark,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             const SizedBox(height: 16),
