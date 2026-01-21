@@ -72,6 +72,16 @@ class AcademyViewModel extends ChangeNotifier {
   /// Verifica se pode adicionar mais modalidades
   bool get canAddModality => _academy.canAddModality();
 
+  /// Atualiza modalidade localmente (sem ir ao backend)
+  void updateLocalModality(AcademyModality updated) {
+    final list = [..._academy.modalities];
+    final index = list.indexWhere((m) => m.id == updated.id);
+    if (index == -1) return;
+    list[index] = updated;
+    _academy = _academy.copyWith(modalities: list);
+    notifyListeners();
+  }
+
   void _init() async {
     // Se veio um academyId (selecionado), busca diretamente; senão usa o fluxo legado (owner -> primeira academia)
     final Result<Academy?> result = (_academyId != null && _academyId!.isNotEmpty)

@@ -40,8 +40,7 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // TODO: Substitua com suas credenciais do Firebase
-  // Execute: flutterfire configure
+
   
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'YOUR_WEB_API_KEY',

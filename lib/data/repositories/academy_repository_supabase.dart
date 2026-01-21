@@ -386,11 +386,18 @@ class AcademyRepositorySupabase implements AcademyRepository {
           : null,
     );
 
+    // Parse professores da tabela modality_teachers (quando carregados)
+    final teachersData = data['modality_teachers'] as List<dynamic>? ?? [];
+    final teacherIds = teachersData
+        .where((t) => (t as Map<String, dynamic>)['role'] == 'teacher')
+        .map<String>((t) => (t as Map<String, dynamic>)['user_id'] as String)
+        .toList();
+
     return AcademyModality(
       id: data['id'] as String,
       type: type,
       masterId: data['master_id'] as String?,
-      teacherIds: const [],
+      teacherIds: teacherIds,
       instructorIds: const [],
       graduationConfig: graduationConfig,
       isActive: data['is_active'] as bool? ?? true,

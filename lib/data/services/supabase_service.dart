@@ -62,7 +62,12 @@ class SupabaseService {
           *,
           academy_modalities (
             *,
-            belt_configs (*)
+            belt_configs (*),
+            modality_teachers (
+              id,
+              user_id,
+              role
+            )
           )
         ''')
         .eq('id', id)
@@ -82,7 +87,12 @@ class SupabaseService {
           *,
           academy_modalities (
             *,
-            belt_configs (*)
+            belt_configs (*),
+            modality_teachers (
+              id,
+              user_id,
+              role
+            )
           )
         ''')
         .eq('owner_id', user['id'])
@@ -395,6 +405,51 @@ class SupabaseService {
     }
 
     return results;
+  }
+
+  // ============================================
+  // MODALITY TEACHERS
+  // ============================================
+
+  /// Lista professores/instrutores de uma modalidade
+  Future<List<Map<String, dynamic>>> getModalityTeachers(
+      String modalityId) async {
+    final response = await _client
+        .from('modality_teachers')
+        .select('''
+          id,
+          user_id,
+          role,
+          users!modality_teachers_user_id_fkey (*)
+        ''')
+        .eq('modality_id', modalityId);
+
+    return (response as List).cast<Map<String, dynamic>>();
+  }
+
+  /// Define a lista de professores de uma modalidade (sobrescreve existentes)
+  Future<void> setModalityTeachers(
+      String modalityId, List<String> userIds) async {
+    // Remove professores atuais
+    await _client
+        .from('modality_teachers')
+        .delete()
+        .eq('modality_id', modalityId)
+        .eq('role', 'teacher');
+
+    if (userIds.isEmpty) return;
+
+    final rows = userIds
+        .map(
+          (userId) => {
+            'modality_id': modalityId,
+            'user_id': userId,
+            'role': 'teacher',
+          },
+        )
+        .toList();
+
+    await _client.from('modality_teachers').insert(rows);
   }
 
   /// Conta membros da academia

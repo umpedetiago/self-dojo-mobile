@@ -6,8 +6,9 @@ import 'package:self_dojo_mobile/data/repositories/academy_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
 import 'package:self_dojo_mobile/domain/models/academy/academy_modality.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
-import 'package:self_dojo_mobile/ui/features/academy/view_models/academy_viewmodel.dart';
 import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
+import 'package:self_dojo_mobile/ui/features/academy/view_models/academy_viewmodel.dart';
+import 'package:self_dojo_mobile/data/services/supabase_service.dart';
 
 /// Tela de gerenciamento de modalidades
 class ModalitiesScreen extends StatelessWidget {
@@ -34,6 +35,317 @@ class ModalitiesScreen extends StatelessWidget {
     );
   }
 }
+
+/// Bottom sheet para gerenciar professores de uma modalidade
+class _ManageTeachersSheet extends StatefulWidget {
+  const _ManageTeachersSheet({
+    required this.modality,
+    required this.academyId,
+    required this.onUpdated,
+  });
+
+  final AcademyModality modality;
+  final String academyId;
+  final void Function(List<String> teacherIds) onUpdated;
+
+  @override
+  State<_ManageTeachersSheet> createState() => _ManageTeachersSheetState();
+}
+
+class _ManageTeachersSheetState extends State<_ManageTeachersSheet> {
+  bool _isLoading = true;
+  bool _isSaving = false;
+  String? _error;
+
+  List<Map<String, dynamic>> _members = [];
+  Set<String> _selectedUserIds = {};
+  String? _ownerUserId; // id do usuário no banco (não o firebase_uid)
+  bool _includeOwner = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final supabase = context.read<SupabaseService>();
+      final auth = context.read<AuthViewModel>();
+
+      // Owner (buscar user_id pelo firebase_uid)
+      final ownerUser =
+          await supabase.getUserByFirebaseUid(auth.user.id);
+      _ownerUserId = ownerUser?['id'] as String?;
+
+      // Membros da academia
+      final members =
+          await supabase.getAcademyMembers(widget.academyId, status: 'approved');
+
+      // Professores atuais da modalidade
+      final teachers =
+          await supabase.getModalityTeachers(widget.modality.id);
+
+      final currentTeacherIds = teachers
+          .where(
+            (t) =>
+                (t['role'] as String?) == 'teacher' &&
+                t['user_id'] is String,
+          )
+          .map<String>((t) => t['user_id'] as String)
+          .toSet();
+
+      final includeOwner = _ownerUserId != null &&
+          currentTeacherIds.contains(_ownerUserId);
+
+      setState(() {
+        _members = members;
+        _selectedUserIds = currentTeacherIds;
+        _includeOwner = includeOwner;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Erro ao carregar professores: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final supabase = context.read<SupabaseService>();
+      final teacherIds = {
+        ..._selectedUserIds,
+        if (_includeOwner && _ownerUserId != null) _ownerUserId!,
+      }.toList();
+
+      await supabase.setModalityTeachers(widget.modality.id, teacherIds);
+
+      widget.onUpdated(teacherIds);
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Professores atualizados com sucesso'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao salvar professores: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final martialArt = widget.modality.martialArt;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: martialArt.primaryColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    martialArt.icon,
+                    color: martialArt.primaryColor,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Professores - ${martialArt.shortName}',
+                    style: const TextStyle(
+                      color: AppColors.textPrimaryDark,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.white70),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Selecione os membros que são professores nesta modalidade.',
+              style: TextStyle(
+                color: AppColors.textSecondaryDark,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child:
+                      CircularProgressIndicator(color: AppColors.primary),
+                ),
+              )
+            else if (_error != null)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(
+                    color: AppColors.error,
+                    fontSize: 13,
+                  ),
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _members.length,
+                  separatorBuilder: (_, __) => const Divider(
+                    color: Color(0x22FFFFFF),
+                    height: 1,
+                  ),
+                  itemBuilder: (context, index) {
+                    final member = _members[index];
+                    final user = member['users'] as Map<String, dynamic>?;
+                    final userId = member['user_id'] as String?;
+                    if (userId == null) return const SizedBox.shrink();
+
+                    final name =
+                        user?['display_name'] as String? ?? 'Sem nome';
+                    final email = user?['email'] as String? ?? '';
+                    final isSelected = _selectedUserIds.contains(userId);
+
+                    return CheckboxListTile(
+                      value: isSelected,
+                      onChanged: (value) {
+                        setState(() {
+                          if (value == true) {
+                            _selectedUserIds.add(userId);
+                          } else {
+                            _selectedUserIds.remove(userId);
+                          }
+                        });
+                      },
+                      activeColor: AppColors.primary,
+                      title: Text(
+                        name,
+                        style: const TextStyle(
+                          color: AppColors.textPrimaryDark,
+                        ),
+                      ),
+                      subtitle: email.isNotEmpty
+                          ? Text(
+                              email,
+                              style: const TextStyle(
+                                color: AppColors.textSecondaryDark,
+                                fontSize: 12,
+                              ),
+                            )
+                          : null,
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 16),
+            if (_ownerUserId != null)
+              CheckboxListTile(
+                value: _includeOwner,
+                onChanged: (value) {
+                  setState(() {
+                    _includeOwner = value ?? false;
+                  });
+                },
+                activeColor: AppColors.primary,
+                title: const Text(
+                  'Incluir-me como professor nesta modalidade',
+                  style: TextStyle(color: AppColors.textPrimaryDark),
+                ),
+                subtitle: const Text(
+                  'Você (owner) aparecerá como professor mesmo sem estar na lista de membros.',
+                  style: TextStyle(
+                    color: AppColors.textSecondaryDark,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            if (_members.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 8, bottom: 4),
+                child: Text(
+                  'Nenhum membro aprovado na academia.',
+                  style: TextStyle(
+                    color: AppColors.textSecondaryDark,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isSaving || _isLoading ? null : _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.check),
+                label: Text(
+                  _isSaving ? 'Salvando...' : 'Salvar',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 class _ModalitiesContent extends StatelessWidget {
   const _ModalitiesContent();
@@ -375,10 +687,10 @@ class _ModalitiesContent extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      _showSetMasterDialog(context, modality, viewModel);
+                      _showManageTeachersDialog(context, modality, viewModel);
                     },
-                    icon: const Icon(Icons.person_add, size: 18),
-                    label: const Text('Mestre'),
+                    icon: const Icon(Icons.school, size: 18),
+                    label: const Text('Professores'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.textPrimaryDark,
                       side: BorderSide(
@@ -391,6 +703,29 @@ class _ModalitiesContent extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showManageTeachersDialog(
+    BuildContext context,
+    AcademyModality modality,
+    AcademyViewModel viewModel,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surfaceDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _ManageTeachersSheet(
+        modality: modality,
+        academyId: viewModel.academy.id,
+        onUpdated: (teacherIds) {
+          final updated = modality.copyWith(teacherIds: teacherIds);
+          viewModel.updateLocalModality(updated);
+        },
       ),
     );
   }
@@ -507,31 +842,7 @@ class _ModalitiesContent extends StatelessWidget {
     );
   }
 
-  void _showSetMasterDialog(
-    BuildContext context,
-    AcademyModality modality,
-    AcademyViewModel viewModel,
-  ) {
-    // TODO: implementar seleção de mestre da lista de professores
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surfaceDark,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Mestre de ${modality.martialArt.shortName}'),
-        content: const Text(
-          'Para definir um mestre, primeiro adicione professores à academia.',
-          style: TextStyle(color: AppColors.textSecondaryDark),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
+  // OBS: seleção de mestre será implementada futuramente com base nos professores cadastrados
 
   void _showRemoveModalityDialog(
     BuildContext context,
