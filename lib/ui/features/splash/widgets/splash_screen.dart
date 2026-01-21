@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:self_dojo_mobile/core/navigation/app_navigation.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_repository.dart';
 import 'package:self_dojo_mobile/data/services/profile_service.dart';
@@ -107,24 +107,27 @@ class _SplashScreenState extends State<SplashScreen>
         onSuccess: (academies) {
           if (!mounted) return;
           if (academies.isEmpty) {
-            context.go('/academy/create');
+            AppNavigation.goToCreateAcademy(context);
           } else if (academies.length == 1) {
-            context.go('/academy/manage/${academies.first.id}');
+            AppNavigation.goToManageAcademy(
+              context,
+              academyId: academies.first.id,
+            );
           } else {
-            context.go('/academy/select');
+            AppNavigation.goToSelectAcademy(context);
           }
         },
         onFailure: (_) {
           // Em caso de erro, redireciona para home
           if (mounted) {
-            context.go('/home');
+            AppNavigation.goToHome(context);
           }
         },
       );
     } else {
       // Se não for owner, redireciona para home
       if (mounted) {
-        context.go('/home');
+        AppNavigation.goToHome(context);
       }
     }
   }

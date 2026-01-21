@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:self_dojo_mobile/core/navigation/app_navigation.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
+import 'package:self_dojo_mobile/core/ui/components/components.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
 import 'package:self_dojo_mobile/domain/models/academy/academy.dart';
@@ -97,20 +98,13 @@ class _ManageAcademyContentState extends State<_ManageAcademyContent> {
     final viewModel = context.watch<AcademyViewModel>();
 
     if (viewModel.isLoading) {
-      return Scaffold(
-        body: Container(
-          decoration: _backgroundDecoration,
-          child: const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          ),
-        ),
-      );
+      return const AppLoadingScaffold();
     }
 
     // Se não tem academia, redireciona para criar
     if (!viewModel.hasAcademy) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go('/academy/create');
+        AppNavigation.goToCreateAcademy(context);
       });
       return const SizedBox.shrink();
     }
@@ -132,7 +126,16 @@ class _ManageAcademyContentState extends State<_ManageAcademyContent> {
               // Trial Banner
               if (viewModel.isOnTrial)
                 SliverToBoxAdapter(
-                  child: _buildTrialBanner(viewModel),
+                  child: AppBannerCard(
+                    icon: Icons.card_giftcard,
+                    title: 'Período de Trial',
+                    subtitle:
+                        '${viewModel.trialDaysRemaining} dias restantes • Até 10 alunos',
+                    actionLabel: 'Assinar',
+                    onAction: () {
+                      // TODO: ir para assinatura
+                    },
+                  ),
                 ),
 
               // Stats Cards
@@ -146,7 +149,7 @@ class _ManageAcademyContentState extends State<_ManageAcademyContent> {
                     childAspectRatio: 1.3,
                   ),
                   delegate: SliverChildListDelegate([
-                    _buildStatCard(
+                    AppStatCard(
                       icon: Icons.people,
                       label: 'Alunos',
                       value: '${viewModel.studentCount}',
@@ -154,31 +157,31 @@ class _ManageAcademyContentState extends State<_ManageAcademyContent> {
                           ? '/ 10'
                           : '/ ${academy.subscription?.maxStudents ?? '∞'}',
                       color: AppColors.primary,
-                      onTap: () => context.push('/academy/students'),
+                      onTap: () => AppNavigation.pushToAcademyStudents(context),
                     ),
-                    _buildStatCard(
+                    AppStatCard(
                       icon: Icons.sports_martial_arts,
                       label: 'Modalidades',
                       value: '${academy.modalities.length}',
                       maxValue: '/ ${academy.subscription?.maxModalities ?? '∞'}',
                       color: AppColors.secondary,
-                      onTap: () => context.push('/academy/modalities'),
+                      onTap: () => AppNavigation.pushToAcademyModalities(context),
                     ),
-                    _buildStatCard(
+                    AppStatCard(
                       icon: Icons.school,
                       label: 'Professores',
                       value: '${academy.totalTeachers}',
                       maxValue: '/ ${academy.subscription?.maxTeachers ?? '∞'}',
                       color: AppColors.accent,
-                      onTap: () => context.push('/academy/teachers'),
+                      onTap: () => AppNavigation.pushToAcademyTeachers(context),
                     ),
-                    _buildStatCard(
+                    AppStatCard(
                       icon: Icons.pending_actions,
                       label: 'Solicitações',
                       value: '${viewModel.pendingRequestsCount}',
                       color: Colors.orange,
                       onTap: () async {
-                        await context.push('/academy/requests');
+                        await AppNavigation.pushToAcademyRequests(context);
                         viewModel.refreshPendingRequestsCount();
                       },
                     ),
@@ -193,67 +196,66 @@ class _ManageAcademyContentState extends State<_ManageAcademyContent> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Gerenciamento',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimaryDark,
-                        ),
+                      const AppSectionTitle(
+                        title: 'Gerenciamento',
+                        padding: EdgeInsets.zero,
                       ),
                       const SizedBox(height: 16),
-                      _buildMenuItem(
+                      AppMenuItemCard(
                         icon: Icons.sports_martial_arts,
                         title: 'Modalidades',
                         subtitle: 'Gerenciar artes marciais e graduações',
-                        onTap: () => context.push('/academy/modalities'),
+                        onTap: () => AppNavigation.pushToAcademyModalities(context),
                       ),
-                      _buildMenuItem(
+                      AppMenuItemCard(
                         icon: Icons.people,
                         title: 'Alunos',
                         subtitle: 'Ver e gerenciar alunos',
-                        onTap: () => context.push('/academy/students'),
+                        onTap: () => AppNavigation.pushToAcademyStudents(context),
                       ),
-                      _buildMenuItem(
+                      AppMenuItemCard(
                         icon: Icons.person_add,
                         title: 'Solicitações',
                         subtitle: 'Aprovar novos alunos',
                         onTap: () async {
-                          await context.push('/academy/requests');
+                          await AppNavigation.pushToAcademyRequests(context);
                           viewModel.refreshPendingRequestsCount();
                         },
                       ),
-                      _buildMenuItem(
+                      AppMenuItemCard(
                         icon: Icons.school,
                         title: 'Equipe',
                         subtitle: 'Professores e instrutores',
-                        onTap: () => context.push('/academy/teachers'),
+                        onTap: () => AppNavigation.pushToAcademyTeachers(context),
                       ),
-                      _buildMenuItem(
+                      AppMenuItemCard(
                         icon: Icons.schedule,
                         title: 'Horários de Aulas',
                         subtitle: 'Gerenciar horários e disponibilizar check-in',
-                        onTap: () => context.push('/academy/schedules'),
+                        onTap: () => AppNavigation.pushToAcademySchedules(context),
                       ),
-                      _buildMenuItem(
+                      AppMenuItemCard(
                         icon: Icons.person,
                         title: 'Editar Perfil',
                         subtitle: 'Dados do owner',
-                        onTap: () => context.push('/profile/edit'),
+                        onTap: () => AppNavigation.pushToEditProfile(context),
                       ),
-                      _buildMenuItem(
+                      AppMenuItemCard(
                         icon: Icons.edit,
                         title: 'Editar Academia',
                         subtitle: 'Informações da academia',
-                        onTap: () => context.push('/academy/edit/${academy.id}'),
+                        onTap: () => AppNavigation.pushToEditAcademy(
+                          context,
+                          academyId: academy.id,
+                        ),
                       ),
-                      _buildMenuItem(
+                      AppMenuItemCard(
                         icon: Icons.credit_card,
                         title: 'Assinatura',
                         subtitle: academy.subscription?.isTrial == true
                             ? 'Trial - ${viewModel.trialDaysRemaining} dias restantes'
                             : 'Gerenciar plano',
-                        onTap: () => context.push('/academy/subscription'),
+                        onTap: () => AppNavigation.pushToAcademySubscription(context),
                       ),
                     ],
                   ),
@@ -293,7 +295,7 @@ class _ManageAcademyContentState extends State<_ManageAcademyContent> {
               // Botão de voltar apenas se houver múltiplas academias
               if (_hasMultipleAcademies)
                 IconButton(
-                  onPressed: () => context.go('/academy/select'),
+                  onPressed: () => AppNavigation.goToSelectAcademy(context),
                   icon: const Icon(
                     Icons.arrow_back_ios_new,
                     color: AppColors.textPrimaryDark,
@@ -312,14 +314,17 @@ class _ManageAcademyContentState extends State<_ManageAcademyContent> {
                 ),
               const Spacer(),
               IconButton(
-                onPressed: () => context.push('/academy/edit/${academy.id}'),
+                onPressed: () => AppNavigation.pushToEditAcademy(
+                  context,
+                  academyId: academy.id,
+                ),
                 icon: const Icon(
                   Icons.settings,
                   color: AppColors.textSecondaryDark,
                 ),
               ),
               IconButton(
-                onPressed: () => context.push('/profile/edit'),
+                onPressed: () => AppNavigation.pushToEditProfile(context),
                 icon: const Icon(
                   Icons.person,
                   color: AppColors.textSecondaryDark,
@@ -385,160 +390,6 @@ class _ManageAcademyContentState extends State<_ManageAcademyContent> {
     );
   }
 
-  Widget _buildTrialBanner(AcademyViewModel viewModel) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary.withValues(alpha: 0.3),
-            AppColors.secondary.withValues(alpha: 0.3),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.card_giftcard, color: AppColors.primary, size: 28),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Período de Trial',
-                  style: TextStyle(
-                    color: AppColors.textPrimaryDark,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '${viewModel.trialDaysRemaining} dias restantes • Até 10 alunos',
-                  style: const TextStyle(
-                    color: AppColors.textSecondaryDark,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () {}, // TODO: ir para assinatura
-            child: const Text('Assinar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    String? maxValue,
-    required Color color,
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceDark.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimaryDark,
-                  ),
-                ),
-                if (maxValue != null)
-                  Text(
-                    maxValue,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textTertiaryDark,
-                    ),
-                  ),
-              ],
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondaryDark.withValues(alpha: 0.8),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: AppColors.primary, size: 22),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: AppColors.textPrimaryDark,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(
-            color: AppColors.textSecondaryDark,
-            fontSize: 13,
-          ),
-        ),
-        trailing: Icon(
-          Icons.chevron_right,
-          color: AppColors.textTertiaryDark,
-        ),
-      ),
-    );
-  }
 
   Widget _buildDrawer(BuildContext context, Academy currentAcademy) {
     final canCreateNew = _canCreateNewAcademy(currentAcademy);
@@ -623,57 +474,59 @@ class _ManageAcademyContentState extends State<_ManageAcademyContent> {
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                  _buildDrawerItem(
+                  AppMenuItemCard(
                     icon: Icons.edit,
                     title: 'Editar Academia',
                     subtitle: 'Informações da academia',
                     onTap: () {
                       Navigator.pop(context);
-                      context.push('/academy/edit/${currentAcademy.id}');
+                      AppNavigation.pushToEditAcademy(
+                        context,
+                        academyId: currentAcademy.id,
+                      );
                     },
                   ),
-                  _buildDrawerItem(
+                  AppMenuItemCard(
                     icon: Icons.person,
                     title: 'Editar Perfil',
                     subtitle: 'Dados do owner',
                     onTap: () {
                       Navigator.pop(context);
-                      context.push('/profile/edit');
+                      AppNavigation.pushToEditProfile(context);
                     },
                   ),
                   if (canCreateNew)
-                    _buildDrawerItem(
+                    AppMenuItemCard(
                       icon: Icons.add_business,
                       title: 'Criar Nova Academia',
                       subtitle: 'Adicionar uma nova academia',
                       onTap: () {
                         Navigator.pop(context);
-                        context.push('/academy/create');
+                        AppNavigation.goToCreateAcademy(context);
                       },
                     ),
                   if (_hasMultipleAcademies)
-                    _buildDrawerItem(
+                    AppMenuItemCard(
                       icon: Icons.business,
                       title: 'Minhas Academias',
                       subtitle: 'Ver todas as academias',
                       onTap: () {
                         Navigator.pop(context);
-                        context.go('/academy/select');
+                        AppNavigation.goToSelectAcademy(context);
                       },
                     ),
-                  const Divider(
-                    color: AppColors.surfaceVariantDark,
+                  const AppDivider(
                     height: 32,
                     indent: 20,
                     endIndent: 20,
                   ),
-                  _buildDrawerItem(
+                  AppMenuItemCard(
                     icon: Icons.home,
                     title: 'Voltar para Home',
                     subtitle: 'Tela inicial',
                     onTap: () {
                       Navigator.pop(context);
-                      context.go('/home');
+                      AppNavigation.goToHome(context);
                     },
                   ),
                 ],
@@ -685,41 +538,5 @@ class _ManageAcademyContentState extends State<_ManageAcademyContent> {
     );
   }
 
-  Widget _buildDrawerItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      onTap: onTap,
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: AppColors.primary, size: 22),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: AppColors.textPrimaryDark,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(
-          color: AppColors.textSecondaryDark,
-          fontSize: 12,
-        ),
-      ),
-      trailing: Icon(
-        Icons.chevron_right,
-        color: AppColors.textTertiaryDark,
-      ),
-    );
-  }
 }
 

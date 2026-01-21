@@ -6,6 +6,102 @@ Guia sobre o sistema de rotas e navegação no Self Dojo Mobile.
 
 Este documento descreve as estratégias de navegação declarativa usando **GoRouter**, a solução recomendada para Flutter.
 
+## ⚠️ REGRA IMPORTANTE: Use AppNavigation
+
+**NUNCA** use strings diretamente em `context.go()` ou `context.push()`. **SEMPRE** use a classe `AppNavigation`.
+
+```dart
+// ❌ INCORRETO - Não faça isso!
+context.go('/academy/manage/$academyId');
+context.push('/profile/edit');
+
+// ✅ CORRETO - Use AppNavigation
+import 'package:self_dojo_mobile/core/navigation/app_navigation.dart';
+
+AppNavigation.goToManageAcademy(context, academyId: academyId);
+AppNavigation.pushToEditProfile(context);
+```
+
+## 📦 Classe AppNavigation
+
+A classe `AppNavigation` fornece métodos type-safe para todas as rotas do aplicativo.
+
+### Importação
+
+```dart
+import 'package:self_dojo_mobile/core/navigation/app_navigation.dart';
+```
+
+### Métodos Disponíveis
+
+#### Auth Routes
+
+```dart
+AppNavigation.goToSplash(context);
+AppNavigation.goToLogin(context);
+AppNavigation.pushToRegister(context);
+```
+
+#### Home Routes
+
+```dart
+AppNavigation.goToHome(context);
+```
+
+#### Profile Routes
+
+```dart
+AppNavigation.pushToEditProfile(context);
+```
+
+#### Check-in Routes
+
+```dart
+AppNavigation.pushToCheckIn(context);
+AppNavigation.pushToCheckInHistory(context);
+```
+
+#### Academy Routes
+
+```dart
+// Navegação básica
+AppNavigation.goToCreateAcademy(context);
+AppNavigation.goToSelectAcademy(context);
+AppNavigation.pushToSearchAcademy(context);
+
+// Gerenciamento de academia
+AppNavigation.goToManageAcademy(context); // Sem ID - vai para seleção
+AppNavigation.goToManageAcademy(context, academyId: '123'); // Com ID específico
+
+// Funcionalidades da academia
+AppNavigation.pushToAcademyModalities(context);
+AppNavigation.pushToAcademyStudents(context);
+AppNavigation.pushToAcademyTeachers(context);
+AppNavigation.pushToAcademySchedules(context);
+AppNavigation.pushToAcademySubscription(context);
+
+// Com parâmetros
+AppNavigation.pushToEditAcademy(context, academyId: '123');
+AppNavigation.pushToAcademyStudentDetail(context, memberId: '456');
+AppNavigation.pushToAcademyGraduation(context, type: 'jiuJitsu');
+
+// Solicitações (retorna resultado)
+await AppNavigation.pushToAcademyRequests(context);
+```
+
+#### Utility Methods
+
+```dart
+// Voltar
+AppNavigation.pop(context);
+AppNavigation.pop(context, resultData); // Com resultado
+
+// Verificar se pode voltar
+if (AppNavigation.canPop(context)) {
+  AppNavigation.pop(context);
+}
+```
+
 ## 📦 Instalação
 
 ```yaml
@@ -18,403 +114,127 @@ dependencies:
 
 ### Router Configuration
 
-```dart
-// lib/core/router/app_router.dart
-import 'package:go_router/go_router.dart';
-
-final appRouter = GoRouter(
-  initialLocation: '/',
-  debugLogDiagnostics: true,
-  routes: [
-    GoRoute(
-      path: '/',
-      name: 'home',
-      builder: (context, state) => const HomePage(),
-    ),
-    GoRoute(
-      path: '/login',
-      name: 'login',
-      builder: (context, state) => const LoginPage(),
-    ),
-    GoRoute(
-      path: '/profile/:userId',
-      name: 'profile',
-      builder: (context, state) {
-        final userId = state.pathParameters['userId']!;
-        return ProfilePage(userId: userId);
-      },
-    ),
-  ],
-);
-
-// main.dart
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
-      routerConfig: appRouter,
-    );
-  }
-}
-```
-
-### Route Constants
+As rotas estão definidas em `lib/core/config/app_router.dart`:
 
 ```dart
-// lib/core/router/routes.dart
+// lib/core/config/app_router.dart
 abstract class AppRoutes {
-  static const home = '/';
+  // Auth
+  static const splash = '/splash';
   static const login = '/login';
   static const register = '/register';
-  static const profile = '/profile';
-  static const settings = '/settings';
-  
-  // Nested routes
-  static const settingsNotifications = '/settings/notifications';
-  static const settingsPrivacy = '/settings/privacy';
+
+  // Home
+  static const home = '/home';
+
+  // Academy
+  static const createAcademy = '/academy/create';
+  static const manageAcademyById = '/academy/manage/:academyId';
+  // ... mais rotas
 }
 ```
 
 ## 🔀 Tipos de Navegação
 
-### Push (Adiciona à stack)
-
-```dart
-// Por path
-context.push('/profile/123');
-
-// Por nome
-context.pushNamed(
-  'profile',
-  pathParameters: {'userId': '123'},
-);
-
-// Com query parameters
-context.push('/search?query=flutter&page=1');
-context.pushNamed(
-  'search',
-  queryParameters: {'query': 'flutter', 'page': '1'},
-);
-```
-
 ### Go (Substitui a stack)
 
 ```dart
 // Vai para a rota, limpando a stack
-context.go('/home');
-
-// Por nome
-context.goNamed('home');
+AppNavigation.goToHome(context);
+AppNavigation.goToLogin(context);
 ```
 
-### Replace (Substitui a rota atual)
+### Push (Adiciona à stack)
 
 ```dart
-// Substitui sem adicionar à stack
-context.pushReplacement('/home');
+// Adiciona à stack (pode voltar)
+AppNavigation.pushToEditProfile(context);
+AppNavigation.pushToAcademyStudents(context);
 ```
 
 ### Pop (Volta)
 
 ```dart
 // Volta para a tela anterior
-context.pop();
+AppNavigation.pop(context);
 
 // Volta com resultado
-context.pop(resultData);
+AppNavigation.pop(context, resultData);
 
 // Verificar se pode voltar
-if (context.canPop()) {
-  context.pop();
+if (AppNavigation.canPop(context)) {
+  AppNavigation.pop(context);
 }
-```
-
-## 🏗️ Rotas Aninhadas (Nested Routes)
-
-### Shell Route
-
-```dart
-final appRouter = GoRouter(
-  routes: [
-    ShellRoute(
-      builder: (context, state, child) {
-        return MainShell(child: child);
-      },
-      routes: [
-        GoRoute(
-          path: '/home',
-          builder: (context, state) => const HomePage(),
-        ),
-        GoRoute(
-          path: '/search',
-          builder: (context, state) => const SearchPage(),
-        ),
-        GoRoute(
-          path: '/profile',
-          builder: (context, state) => const ProfilePage(),
-        ),
-      ],
-    ),
-  ],
-);
-
-// MainShell com BottomNavigationBar
-class MainShell extends StatelessWidget {
-  final Widget child;
-  
-  const MainShell({super.key, required this.child});
-  
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _calculateSelectedIndex(context),
-        onTap: (index) => _onItemTapped(index, context),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
-    );
-  }
-  
-  int _calculateSelectedIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/home')) return 0;
-    if (location.startsWith('/search')) return 1;
-    if (location.startsWith('/profile')) return 2;
-    return 0;
-  }
-  
-  void _onItemTapped(int index, BuildContext context) {
-    switch (index) {
-      case 0:
-        context.go('/home');
-      case 1:
-        context.go('/search');
-      case 2:
-        context.go('/profile');
-    }
-  }
-}
-```
-
-### Stateful Shell Route (Preserva estado)
-
-```dart
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
-final _shellNavigatorKey = GlobalKey<NavigatorState>();
-
-final appRouter = GoRouter(
-  navigatorKey: _rootNavigatorKey,
-  routes: [
-    StatefulShellRoute.indexedStack(
-      builder: (context, state, navigationShell) {
-        return MainShell(navigationShell: navigationShell);
-      },
-      branches: [
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: '/home',
-              builder: (context, state) => const HomePage(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: '/search',
-              builder: (context, state) => const SearchPage(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: '/profile',
-              builder: (context, state) => const ProfilePage(),
-            ),
-          ],
-        ),
-      ],
-    ),
-  ],
-);
-```
-
-## 🔐 Redirecionamento e Guards
-
-### Authentication Redirect
-
-```dart
-final appRouter = GoRouter(
-  redirect: (context, state) {
-    final isLoggedIn = authNotifier.isLoggedIn;
-    final isLoggingIn = state.matchedLocation == '/login';
-    
-    // Se não está logado e não está na tela de login
-    if (!isLoggedIn && !isLoggingIn) {
-      return '/login';
-    }
-    
-    // Se está logado e está na tela de login
-    if (isLoggedIn && isLoggingIn) {
-      return '/home';
-    }
-    
-    // Sem redirecionamento
-    return null;
-  },
-  routes: [...],
-);
-```
-
-### Refresh com Listenable
-
-```dart
-// Com Riverpod
-final appRouter = GoRouter(
-  refreshListenable: authNotifier,
-  redirect: (context, state) {
-    // Lógica de redirect
-  },
-  routes: [...],
-);
-
-// AuthNotifier como ChangeNotifier
-class AuthNotifier extends ChangeNotifier {
-  bool _isLoggedIn = false;
-  
-  bool get isLoggedIn => _isLoggedIn;
-  
-  void login() {
-    _isLoggedIn = true;
-    notifyListeners();
-  }
-  
-  void logout() {
-    _isLoggedIn = false;
-    notifyListeners();
-  }
-}
-```
-
-## 🎬 Transições Personalizadas
-
-### Page Transitions
-
-```dart
-GoRoute(
-  path: '/details',
-  pageBuilder: (context, state) {
-    return CustomTransitionPage(
-      key: state.pageKey,
-      child: const DetailsPage(),
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: child,
-        );
-      },
-    );
-  },
-),
-
-// Slide Transition
-GoRoute(
-  path: '/modal',
-  pageBuilder: (context, state) {
-    return CustomTransitionPage(
-      key: state.pageKey,
-      child: const ModalPage(),
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        const begin = Offset(0.0, 1.0);
-        const end = Offset.zero;
-        final tween = Tween(begin: begin, end: end)
-            .chain(CurveTween(curve: Curves.easeInOut));
-        return SlideTransition(
-          position: animation.drive(tween),
-          child: child,
-        );
-      },
-    );
-  },
-),
 ```
 
 ## 💬 Passando Dados
 
 ### Via Path Parameters
 
-```dart
-// Definição
-GoRoute(
-  path: '/user/:id',
-  builder: (context, state) {
-    final id = state.pathParameters['id']!;
-    return UserPage(id: id);
-  },
-),
+As rotas com parâmetros são tratadas automaticamente pelos métodos do `AppNavigation`:
 
-// Navegação
-context.push('/user/123');
+```dart
+// Rota: /academy/manage/:academyId
+AppNavigation.goToManageAcademy(
+  context,
+  academyId: '123',
+);
+
+// Rota: /academy/edit/:academyId
+AppNavigation.pushToEditAcademy(
+  context,
+  academyId: '456',
+);
+
+// Rota: /academy/students/:memberId
+AppNavigation.pushToAcademyStudentDetail(
+  context,
+  memberId: '789',
+);
 ```
 
-### Via Query Parameters
+### Via Resultado (Pop com resultado)
 
 ```dart
-// Definição
-GoRoute(
-  path: '/search',
-  builder: (context, state) {
-    final query = state.uri.queryParameters['q'] ?? '';
-    return SearchPage(query: query);
-  },
-),
-
-// Navegação
-context.push('/search?q=flutter');
-```
-
-### Via Extra (Objetos complexos)
-
-```dart
-// Definição
-GoRoute(
-  path: '/details',
-  builder: (context, state) {
-    final product = state.extra as Product;
-    return DetailsPage(product: product);
-  },
-),
-
-// Navegação
-context.push('/details', extra: product);
-```
-
-## ⬅️ Resultado ao Voltar
-
-```dart
-// Na tela de destino
-GoRoute(
-  path: '/select-color',
-  builder: (context, state) => ColorPickerPage(),
-),
-
-// ColorPickerPage
-ElevatedButton(
-  onPressed: () => context.pop(selectedColor),
-  child: Text('Confirmar'),
-),
+// Na tela de destino (ex: seleção de cor)
+AppNavigation.pop(context, selectedColor);
 
 // Na tela de origem
-final selectedColor = await context.push<Color>('/select-color');
+final selectedColor = await AppNavigation.pushToColorPicker(context);
 if (selectedColor != null) {
   // Usar a cor selecionada
 }
+```
+
+## 🎯 Benefícios de Usar AppNavigation
+
+1. **Type Safety**: Erros de digitação são detectados em tempo de compilação
+2. **Refatoração Fácil**: Mudanças nas rotas são centralizadas
+3. **Autocomplete**: IDE sugere métodos disponíveis
+4. **Documentação**: Cada método tem documentação clara
+5. **Consistência**: Todos usam a mesma forma de navegar
+
+## 📝 Adicionando Novas Rotas
+
+1. Adicione a rota em `AppRoutes` (se ainda não existir)
+2. Adicione o método correspondente em `AppNavigation`
+3. Documente o método
+4. Use o método nas telas ao invés de strings
+
+Exemplo:
+
+```dart
+// 1. Em AppRoutes (se necessário)
+static const newFeature = '/new-feature';
+
+// 2. Em AppNavigation
+/// Navega para a nova feature
+static void pushToNewFeature(BuildContext context) {
+  context.push(AppRoutes.newFeature);
+}
+
+// 3. Uso
+AppNavigation.pushToNewFeature(context);
 ```
 
 ## 🧪 Testando Navegação
@@ -423,15 +243,15 @@ if (selectedColor != null) {
 void main() {
   testWidgets('navigates to profile', (tester) async {
     final router = GoRouter(
-      initialLocation: '/home',
+      initialLocation: AppRoutes.home,
       routes: [
         GoRoute(
-          path: '/home',
+          path: AppRoutes.home,
           builder: (context, state) => const HomePage(),
         ),
         GoRoute(
-          path: '/profile',
-          builder: (context, state) => const ProfilePage(),
+          path: AppRoutes.editProfile,
+          builder: (context, state) => const EditProfilePage(),
         ),
       ],
     );
@@ -440,11 +260,11 @@ void main() {
       MaterialApp.router(routerConfig: router),
     );
     
-    // Simula navegação
-    router.push('/profile');
+    // Simula navegação usando AppNavigation
+    AppNavigation.pushToEditProfile(tester.element(find.byType(HomePage)));
     await tester.pumpAndSettle();
     
-    expect(find.byType(ProfilePage), findsOneWidget);
+    expect(find.byType(EditProfilePage), findsOneWidget);
   });
 }
 ```
@@ -479,13 +299,20 @@ void main() {
 </array>
 ```
 
+## ✅ Checklist para Novas Features
+
+Ao criar uma nova tela ou feature:
+
+- [ ] Use `AppNavigation` ao invés de strings
+- [ ] Adicione método em `AppNavigation` se necessário
+- [ ] Documente o método
+- [ ] Teste a navegação
+
 ## 📚 Recursos
 
 - [GoRouter Documentation](https://pub.dev/packages/go_router)
 - [Flutter Navigation](https://docs.flutter.dev/ui/navigation)
-- [Deep Linking](https://docs.flutter.dev/ui/navigation/deep-linking)
 
 ---
 
-*Última atualização: Janeiro 2026*
-
+**Última atualização**: Janeiro 2025

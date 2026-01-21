@@ -218,7 +218,44 @@ class _ExampleWidgetState extends State<ExampleWidget> {
 }
 ```
 
-## 🎨 Widgets
+## 🎨 Widgets e Design System
+
+### ⚠️ REGRA IMPORTANTE: Use Componentes do Design System
+
+**NUNCA** crie funções `_buildXxx()` para widgets reutilizáveis. **SEMPRE** use componentes do design system.
+
+```dart
+// ❌ INCORRETO - Não faça isso!
+Widget _buildStatCard({...}) {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(...),
+    child: Column(...),
+  );
+}
+
+// ✅ CORRETO - Use componentes do design system
+import 'package:self_dojo_mobile/core/ui/components/components.dart';
+
+AppStatCard(
+  icon: Icons.people,
+  label: 'Alunos',
+  value: '42',
+  color: AppColors.primary,
+)
+```
+
+### Componentes Disponíveis
+
+Todos os componentes estão em `lib/core/ui/components/`. Veja a documentação completa em [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md).
+
+**Principais componentes:**
+- `AppPrimaryButton`, `AppSecondaryButton`, `AppOutlinedButton`, `AppTextButton`
+- `AppStatCard`, `AppInfoCard`, `AppMenuItemCard`, `AppBannerCard`
+- `AppTextField`
+- `AppDivider`, `AppIconContainer`, `AppInfoRow`
+- `AppLoadingIndicator`, `AppLoadingScaffold`
+- `AppSectionTitle`
 
 ### Preferências
 
@@ -260,7 +297,10 @@ ListView.builder(
 ### Extração de Widgets
 
 ```dart
-// ✅ Extraia widgets complexos para classes separadas
+// ✅ Para widgets reutilizáveis, use componentes do design system
+// Se o componente não existir, crie em lib/core/ui/components/
+
+// ✅ Para widgets específicos de uma feature, extraia para classes separadas
 class UserCard extends StatelessWidget {
   final User user;
   
@@ -268,24 +308,17 @@ class UserCard extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: _buildAvatar(),
-        title: _buildTitle(),
-        subtitle: _buildSubtitle(),
-      ),
+    return AppInfoCard(
+      title: user.name,
+      children: [
+        AppInfoRow(icon: Icons.email, label: 'Email', value: user.email),
+        // ...
+      ],
     );
   }
-  
-  Widget _buildAvatar() => CircleAvatar(
-    backgroundImage: NetworkImage(user.avatarUrl),
-  );
-  
-  Widget _buildTitle() => Text(user.name);
-  
-  Widget _buildSubtitle() => Text(user.email);
 }
 
+// ❌ NUNCA crie funções _buildXxx() para widgets reutilizáveis
 // ❌ Evite métodos que retornam widgets em StatefulWidget
 // (perda de performance por rebuilds desnecessários)
 ```
@@ -368,11 +401,33 @@ class User {
 // HACK(nome): Explicação do workaround temporário
 ```
 
+## 🧭 Navegação
+
+### ⚠️ REGRA IMPORTANTE: Use AppNavigation
+
+**NUNCA** use strings diretamente em `context.go()` ou `context.push()`. **SEMPRE** use a classe `AppNavigation`.
+
+```dart
+// ❌ INCORRETO - Não faça isso!
+context.go('/academy/manage/$academyId');
+context.push('/profile/edit');
+
+// ✅ CORRETO - Use AppNavigation
+import 'package:self_dojo_mobile/core/navigation/app_navigation.dart';
+
+AppNavigation.goToManageAcademy(context, academyId: academyId);
+AppNavigation.pushToEditProfile(context);
+```
+
+Veja a documentação completa em [NAVIGATION.md](./NAVIGATION.md).
+
 ## ✅ Checklist de Code Review
 
 - [ ] Código formatado (`dart format .`)
 - [ ] Sem warnings do analyzer (`dart analyze`)
 - [ ] Testes passando (`flutter test`)
+- [ ] **Usa componentes do design system (não funções `_buildXxx()`)**
+- [ ] **Usa AppNavigation (não strings diretamente)**
 - [ ] Documentação atualizada
 - [ ] Nomenclatura consistente
 - [ ] Sem código comentado
