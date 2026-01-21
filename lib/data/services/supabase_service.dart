@@ -448,22 +448,25 @@ class SupabaseService {
           .eq('student_modality_id', modality['id'])
           .order('promoted_at', ascending: false);
       
-      // Busca o tipo da modalidade da tabela academy_modalities
+      // Busca dados completos da modalidade da academia (incluindo belt_configs)
       String? martialArtType;
+      Map<String, dynamic>? academyModalityData;
       final modalityId = modality['modality_id'] as String?;
       if (modalityId != null) {
         final academyModality = await _client
             .from('academy_modalities')
-            .select('martial_art_type')
+            .select('*, belt_configs(*)')
             .eq('id', modalityId)
             .maybeSingle();
         martialArtType = academyModality?['martial_art_type'] as String?;
+        academyModalityData = academyModality;
       }
       
       results.add({
         ...modality,
         'graduation_history': historyResponse,
         'martial_art_type': martialArtType,
+        'academy_modality': academyModalityData,
       });
     }
     

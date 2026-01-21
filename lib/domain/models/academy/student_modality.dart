@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:self_dojo_mobile/domain/models/academy/academy_modality.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/belt.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
 
@@ -12,6 +13,7 @@ class StudentModality extends Equatable {
     this.graduationHistory = const [],
     this.totalClasses = 0,
     required this.enrolledAt,
+    this.academyModality,
   });
 
   /// Tipo da arte marcial
@@ -32,16 +34,34 @@ class StudentModality extends Equatable {
   /// Data de matrícula nesta modalidade
   final DateTime enrolledAt;
 
+  /// Modalidade da academia (opcional, usado para obter requisitos do banco)
+  final AcademyModality? academyModality;
+
   /// Retorna a arte marcial
   MartialArt get martialArt => MartialArtsConfig.getByType(type);
 
-  /// Retorna a faixa atual
-  Belt? get currentBelt => martialArt.getBeltById(graduation.beltId);
+  /// Retorna a faixa atual (usa requisitos do banco se academyModality disponível)
+  Belt? get currentBelt {
+    if (academyModality != null) {
+      return academyModality!.getBeltWithDatabaseConfig(graduation.beltId);
+    }
+    return martialArt.getBeltById(graduation.beltId);
+  }
 
-  /// Retorna a próxima faixa
+  /// Retorna a próxima faixa (usa requisitos do banco se academyModality disponível)
   Belt? get nextBelt {
     final current = currentBelt;
     if (current == null) return null;
+    
+    if (academyModality != null) {
+      final belts = academyModality!.beltsWithDatabaseConfig;
+      final currentIndex = belts.indexWhere((b) => b.id == current.id);
+      if (currentIndex == -1 || currentIndex >= belts.length - 1) {
+        return null;
+      }
+      return belts[currentIndex + 1];
+    }
+    
     return martialArt.getNextBelt(current);
   }
 
@@ -97,6 +117,7 @@ class StudentModality extends Equatable {
     List<GraduationHistory>? graduationHistory,
     int? totalClasses,
     DateTime? enrolledAt,
+    AcademyModality? academyModality,
   }) {
     return StudentModality(
       type: type ?? this.type,
@@ -105,6 +126,7 @@ class StudentModality extends Equatable {
       graduationHistory: graduationHistory ?? this.graduationHistory,
       totalClasses: totalClasses ?? this.totalClasses,
       enrolledAt: enrolledAt ?? this.enrolledAt,
+      academyModality: academyModality ?? this.academyModality,
     );
   }
 
@@ -156,6 +178,7 @@ class StudentModality extends Equatable {
         graduationHistory,
         totalClasses,
         enrolledAt,
+        academyModality,
       ];
 }
 

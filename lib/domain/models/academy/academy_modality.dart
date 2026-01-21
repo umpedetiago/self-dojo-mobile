@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:self_dojo_mobile/domain/models/martial_arts/belt.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
 
 /// Configuração de graduação personalizada da academia
@@ -186,6 +187,59 @@ class AcademyModality extends Equatable {
 
   /// Retorna a arte marcial
   MartialArt get martialArt => MartialArtsConfig.getByType(type);
+
+  /// Retorna uma faixa com requisitos do banco quando disponível
+  /// Combina informações visuais (cor, nome) locais com requisitos (minClasses, minMonths) do banco
+  Belt? getBeltWithDatabaseConfig(String beltId) {
+    final baseBelt = martialArt.getBeltById(beltId);
+    if (baseBelt == null) return null;
+
+    // Se usa configuração padrão, retorna a faixa local
+    if (graduationConfig.useDefaultConfig) return baseBelt;
+
+    // Busca configuração do banco
+    final beltConfig = graduationConfig.getBeltConfig(beltId);
+    if (beltConfig == null) return baseBelt;
+
+    // Retorna faixa combinando informações visuais locais com requisitos do banco
+    return Belt(
+      id: baseBelt.id,
+      name: baseBelt.name,
+      color: baseBelt.color,
+      secondaryColor: baseBelt.secondaryColor,
+      order: baseBelt.order,
+      maxDegrees: baseBelt.maxDegrees,
+      minClassesForPromotion: beltConfig.minClasses, // Do banco
+      minMonthsAtBelt: beltConfig.minMonths, // Do banco
+      hasBlackTip: baseBelt.hasBlackTip,
+      degreeMarkColor: baseBelt.degreeMarkColor,
+      tipColor: baseBelt.tipColor,
+    );
+  }
+
+  /// Retorna todas as faixas com requisitos do banco quando disponível
+  List<Belt> get beltsWithDatabaseConfig {
+    if (graduationConfig.useDefaultConfig) return martialArt.belts;
+
+    return martialArt.belts.map((baseBelt) {
+      final beltConfig = graduationConfig.getBeltConfig(baseBelt.id);
+      if (beltConfig == null) return baseBelt;
+
+      return Belt(
+        id: baseBelt.id,
+        name: baseBelt.name,
+        color: baseBelt.color,
+        secondaryColor: baseBelt.secondaryColor,
+        order: baseBelt.order,
+        maxDegrees: baseBelt.maxDegrees,
+        minClassesForPromotion: beltConfig.minClasses,
+        minMonthsAtBelt: beltConfig.minMonths,
+        hasBlackTip: baseBelt.hasBlackTip,
+        degreeMarkColor: baseBelt.degreeMarkColor,
+        tipColor: baseBelt.tipColor,
+      );
+    }).toList();
+  }
 
   /// Verifica se o usuário é mestre desta modalidade
   bool isMaster(String userId) => masterId == userId;

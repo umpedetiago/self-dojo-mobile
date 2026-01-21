@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:self_dojo_mobile/core/utils/result.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
 import 'package:self_dojo_mobile/data/services/supabase_service.dart';
+import 'package:self_dojo_mobile/domain/models/academy/academy_modality.dart';
 import 'package:self_dojo_mobile/domain/models/academy/student_modality.dart';
 import 'package:self_dojo_mobile/domain/models/academy/user_role.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
@@ -300,6 +301,13 @@ class ProfileRepositorySupabase implements ProfileRepository {
       );
     }).toList();
 
+    // Cria AcademyModality se os dados estiverem disponíveis
+    AcademyModality? academyModality;
+    final academyModalityData = data['academy_modality'] as Map<String, dynamic>?;
+    if (academyModalityData != null) {
+      academyModality = _mapToAcademyModality(academyModalityData);
+    }
+
     return StudentModality(
       type: type,
       assignedTeacherId: data['assigned_teacher_id'] as String?,
@@ -308,6 +316,52 @@ class ProfileRepositorySupabase implements ProfileRepository {
       totalClasses: data['total_classes'] as int? ?? 0,
       enrolledAt: DateTime.tryParse(data['enrolled_at'] as String? ?? '') ??
           DateTime.now(),
+      academyModality: academyModality,
+    );
+  }
+
+  /// Converte dados do banco para AcademyModality
+  AcademyModality _mapToAcademyModality(Map<String, dynamic> data) {
+    final typeStr = data['martial_art_type'] as String;
+    final type = MartialArtType.values.firstWhere(
+      (t) => t.name == typeStr,
+      orElse: () => MartialArtType.jiuJitsu,
+    );
+
+    // Parse belt configs
+    final beltConfigsData = data['belt_configs'] as List<dynamic>? ?? [];
+    final beltConfigs = beltConfigsData.map((b) {
+      final bData = b as Map<String, dynamic>;
+      return BeltConfig(
+        beltId: bData['belt_id'] as String,
+        minClasses: bData['min_classes'] as int? ?? 0,
+        minMonths: bData['min_months'] as int?,
+        minClassesPerDegree: bData['min_classes_per_degree'] as int?,
+        requiresExam: bData['requires_exam'] as bool? ?? false,
+        examFee: (bData['exam_fee'] as num?)?.toDouble(),
+        notes: bData['notes'] as String?,
+      );
+    }).toList();
+
+    final graduationConfig = GraduationConfig(
+      martialArtType: type,
+      belts: beltConfigs,
+      useDefaultConfig: data['use_default_graduation'] as bool? ?? true,
+      configuredBy: data['graduation_configured_by'] as String?,
+      lastUpdated: data['graduation_updated_at'] != null
+          ? DateTime.tryParse(data['graduation_updated_at'] as String)
+          : null,
+    );
+
+    return AcademyModality(
+      id: data['id'] as String,
+      type: type,
+      masterId: data['master_id'] as String?,
+      // teacher_ids e instructor_ids podem não existir na tabela ainda
+      teacherIds: const [],
+      instructorIds: const [],
+      graduationConfig: graduationConfig,
+      isActive: data['is_active'] as bool? ?? true,
     );
   }
 }

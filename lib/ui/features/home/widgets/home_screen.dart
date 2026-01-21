@@ -131,6 +131,9 @@ class _HomeContent extends StatelessWidget {
                       label: 'Total de Aulas',
                       value: '${profile.totalClassesAll}',
                       color: AppColors.primary,
+                      onTap: (profile.academyId != null && profile.academyId!.isNotEmpty && !profile.isOwner)
+                          ? () => context.push('/checkin/history')
+                          : null,
                     ),
                     StatsCard(
                       icon: Icons.schedule,
