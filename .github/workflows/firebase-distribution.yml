@@ -87,14 +87,23 @@ jobs:
           BUILD_TYPE="${{ github.event.inputs.build_type || 'debug' }}"
           APK_PATH="build/app/outputs/flutter-apk/app-$BUILD_TYPE.apk"
           
+          # LÓGICA DE GRUPOS:
+          # Se o input manual estiver vazio, usa seus grupos padrão.
+          TARGET_GROUPS="${{ github.event.inputs.groups }}"
+          if [ -z "$TARGET_GROUPS" ]; then
+            TARGET_GROUPS="vcinova, victurus"
+          fi
+          
+          echo "Enviando para os grupos: $TARGET_GROUPS"
+
           DISTRIBUTE_CMD="firebase appdistribution:distribute \"$APK_PATH\" --app 1:1055602452052:android:f0a676d51bdded4d2d2fc1"
           
-          if [ -n "${{ github.event.inputs.groups }}" ]; then
-            DISTRIBUTE_CMD="$DISTRIBUTE_CMD --groups \"${{ github.event.inputs.groups }}\""
-          fi
+          DISTRIBUTE_CMD="$DISTRIBUTE_CMD --groups \"$TARGET_GROUPS\""
           
           if [ -n "${{ github.event.inputs.release_notes }}" ]; then
             DISTRIBUTE_CMD="$DISTRIBUTE_CMD --release-notes \"${{ github.event.inputs.release_notes }}\""
+          else
+            DISTRIBUTE_CMD="$DISTRIBUTE_CMD --release-notes \"Build automático: commit $GITHUB_SHA\""
           fi
           
           eval $DISTRIBUTE_CMD
