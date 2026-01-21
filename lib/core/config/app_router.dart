@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:self_dojo_mobile/ui/features/academy/widgets/academy_select_screen.dart';
 import 'package:self_dojo_mobile/ui/features/academy/widgets/class_schedules_screen.dart';
 import 'package:self_dojo_mobile/ui/features/academy/widgets/create_academy_screen.dart';
+import 'package:self_dojo_mobile/ui/features/academy/widgets/edit_academy_screen.dart';
 import 'package:self_dojo_mobile/ui/features/checkin/widgets/checkin_screen.dart';
 import 'package:self_dojo_mobile/ui/features/checkin/widgets/checkin_history_screen.dart';
 import 'package:self_dojo_mobile/ui/features/academy/widgets/graduation_config_screen.dart';
@@ -37,7 +39,9 @@ abstract class AppRoutes {
 
   // Academy
   static const createAcademy = '/academy/create';
+  static const selectAcademy = '/academy/select';
   static const manageAcademy = '/academy/manage';
+  static const manageAcademyById = '/academy/manage/:academyId';
   static const academyModalities = '/academy/modalities';
   static const academyGraduation = '/academy/modalities/:type/graduation';
   static const academyStudents = '/academy/students';
@@ -46,6 +50,7 @@ abstract class AppRoutes {
   static const academyTeachers = '/academy/teachers';
   static const academySchedules = '/academy/schedules';
   static const academyEdit = '/academy/edit';
+  static const academyEditById = '/academy/edit/:academyId';
   static const academySubscription = '/academy/subscription';
   static const searchAcademy = '/academy/search';
 }
@@ -163,8 +168,22 @@ class AppRouter {
           ),
         ),
         GoRoute(
+          path: AppRoutes.selectAcademy,
+          pageBuilder: (context, state) => _slideTransition(
+            state,
+            const AcademySelectScreen(),
+            slideFromRight: true,
+          ),
+        ),
+        GoRoute(
           path: AppRoutes.manageAcademy,
           builder: (context, state) => const ManageAcademyScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.manageAcademyById,
+          builder: (context, state) => ManageAcademyScreen(
+            academyId: state.pathParameters['academyId'],
+          ),
         ),
         GoRoute(
           path: AppRoutes.academyModalities,
@@ -226,8 +245,20 @@ class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.academyEdit,
-          builder: (context, state) =>
-              const _PlaceholderScreen(title: 'Editar Academia'),
+          builder: (context, state) => const _PlaceholderScreen(
+            title: 'Editar Academia',
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.academyEditById,
+          pageBuilder: (context, state) {
+            final academyId = state.pathParameters['academyId'] ?? '';
+            return _slideTransition(
+              state,
+              EditAcademyScreen(academyId: academyId),
+              slideFromRight: true,
+            );
+          },
         ),
         GoRoute(
           path: AppRoutes.academySubscription,

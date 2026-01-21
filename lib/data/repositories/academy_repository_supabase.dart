@@ -41,6 +41,19 @@ class AcademyRepositorySupabase implements AcademyRepository {
   }
 
   @override
+  Future<Result<List<Academy>>> getOwnerAcademies(String ownerFirebaseUid) async {
+    try {
+      final data = await _supabaseService.getOwnerAcademies(ownerFirebaseUid);
+      final academies = data.map(_mapToAcademy).toList();
+      return Result.success(academies);
+    } catch (e) {
+      return Result.failure(
+        Failure(message: 'Erro ao buscar academias do owner: $e'),
+      );
+    }
+  }
+
+  @override
   Future<Result<Academy>> createAcademy({
     required String ownerId,
     required String name,

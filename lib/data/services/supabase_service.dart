@@ -90,6 +90,27 @@ class SupabaseService {
     return response;
   }
 
+  /// Lista academias do owner
+  Future<List<Map<String, dynamic>>> getOwnerAcademies(String ownerId) async {
+    // Primeiro busca o user_id pelo firebase_uid
+    final user = await getUserByFirebaseUid(ownerId);
+    if (user == null) return [];
+
+    final response = await _client
+        .from('academies')
+        .select('''
+          *,
+          academy_modalities (
+            *,
+            belt_configs (*)
+          )
+        ''')
+        .eq('owner_id', user['id'])
+        .order('created_at', ascending: true);
+
+    return (response as List).cast<Map<String, dynamic>>();
+  }
+
   /// Cria academia
   Future<Map<String, dynamic>> createAcademy(Map<String, dynamic> data) async {
     final response = await _client

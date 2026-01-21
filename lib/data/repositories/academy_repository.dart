@@ -30,6 +30,9 @@ abstract class AcademyRepository {
   /// Obtém academia do owner
   Future<Result<Academy?>> getOwnerAcademy(String ownerId);
 
+  /// Lista academias do owner (quando o usuário possui mais de uma)
+  Future<Result<List<Academy>>> getOwnerAcademies(String ownerId);
+
   /// Adiciona modalidade
   Future<Result<void>> addModality(
     String academyId,

@@ -55,8 +55,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _HomeContent extends StatelessWidget {
+class _HomeContent extends StatefulWidget {
   const _HomeContent();
+
+  @override
+  State<_HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<_HomeContent> {
+  bool _handledOwnerRedirect = false;
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +82,14 @@ class _HomeContent extends StatelessWidget {
     }
 
     final profile = profileService.profile;
+
+    // Owner: ao entrar na home, redireciona para seleção de academia (1 -> entra direto, 2+ -> lista)
+    if (profile.isOwner && !_handledOwnerRedirect) {
+      _handledOwnerRedirect = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/academy/select');
+      });
+    }
     final martialArt = profile.martialArt;
     final currentBelt = profile.currentBelt;
     final nextBelt = profile.nextBelt;
@@ -101,7 +116,7 @@ class _HomeContent extends StatelessWidget {
               // Faixa atual (usa modalidade matriculada se disponível, senão legado)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                   child: BeltDisplay(
                     martialArt: martialArt,
                     belt: currentBelt,
@@ -117,7 +132,7 @@ class _HomeContent extends StatelessWidget {
 
               // Cards de estatísticas
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 sliver: SliverGrid(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
@@ -240,7 +255,7 @@ class _HomeContent extends StatelessWidget {
                     icon: Icons.business,
                     label: 'Minha Academia',
                     color: AppColors.primary,
-                    onTap: () => context.push('/academy/manage'),
+                    onTap: () => context.push('/academy/select'),
                   ),
                 )
               else if (hasAcademy)

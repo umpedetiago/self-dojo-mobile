@@ -10,7 +10,10 @@ import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dar
 
 /// Tela de gerenciamento da academia (Dashboard do Owner)
 class ManageAcademyScreen extends StatelessWidget {
-  const ManageAcademyScreen({super.key});
+  const ManageAcademyScreen({super.key, this.academyId});
+
+  /// Quando informado, abre diretamente esta academia (usado no fluxo de seleção).
+  final String? academyId;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +31,7 @@ class ManageAcademyScreen extends StatelessWidget {
         academyRepository: ctx.read<AcademyRepository>(),
         profileRepository: ctx.read<ProfileRepository>(),
         userId: userId,
+        academyId: academyId,
       ),
       child: const _ManageAcademyContent(),
     );
@@ -180,10 +184,16 @@ class _ManageAcademyContent extends StatelessWidget {
                         onTap: () => context.push('/academy/schedules'),
                       ),
                       _buildMenuItem(
+                        icon: Icons.person,
+                        title: 'Editar Perfil',
+                        subtitle: 'Dados do owner',
+                        onTap: () => context.push('/profile/edit'),
+                      ),
+                      _buildMenuItem(
                         icon: Icons.edit,
                         title: 'Editar Academia',
                         subtitle: 'Informações da academia',
-                        onTap: () => context.push('/academy/edit'),
+                        onTap: () => context.push('/academy/edit/${academy.id}'),
                       ),
                       _buildMenuItem(
                         icon: Icons.credit_card,
@@ -237,9 +247,16 @@ class _ManageAcademyContent extends StatelessWidget {
               ),
               const Spacer(),
               IconButton(
-                onPressed: () => context.push('/academy/edit'),
+                onPressed: () => context.push('/academy/edit/${academy.id}'),
                 icon: const Icon(
                   Icons.settings,
+                  color: AppColors.textSecondaryDark,
+                ),
+              ),
+              IconButton(
+                onPressed: () => context.push('/profile/edit'),
+                icon: const Icon(
+                  Icons.person,
                   color: AppColors.textSecondaryDark,
                 ),
               ),

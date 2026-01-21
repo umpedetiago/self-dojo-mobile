@@ -16,9 +16,11 @@ class AcademyViewModel extends ChangeNotifier {
     required AcademyRepository academyRepository,
     required ProfileRepository profileRepository,
     required String userId,
+    String? academyId,
   })  : _academyRepository = academyRepository,
         _profileRepository = profileRepository,
         _userId = userId {
+    _academyId = academyId;
     createAcademy = Command1(_createAcademy);
     updateAcademy = Command1(_updateAcademy);
     addModality = Command1(_addModality);
@@ -29,6 +31,7 @@ class AcademyViewModel extends ChangeNotifier {
   final AcademyRepository _academyRepository;
   final ProfileRepository _profileRepository;
   final String _userId;
+  String? _academyId;
   StreamSubscription<Academy?>? _academySubscription;
 
   // State
@@ -70,8 +73,10 @@ class AcademyViewModel extends ChangeNotifier {
   bool get canAddModality => _academy.canAddModality();
 
   void _init() async {
-    // Primeiro tenta buscar academia existente do owner
-    final result = await _academyRepository.getOwnerAcademy(_userId);
+    // Se veio um academyId (selecionado), busca diretamente; senão usa o fluxo legado (owner -> primeira academia)
+    final Result<Academy?> result = (_academyId != null && _academyId!.isNotEmpty)
+        ? await _academyRepository.getAcademy(_academyId!)
+        : await _academyRepository.getOwnerAcademy(_userId);
 
     result.fold(
       onSuccess: (academy) {
