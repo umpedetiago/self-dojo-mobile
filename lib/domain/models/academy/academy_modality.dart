@@ -158,6 +158,7 @@ class AcademyModality extends Equatable {
     required this.id,
     required this.type,
     this.masterId,
+    this.masterName,
     this.teacherIds = const [],
     this.instructorIds = const [],
     required this.graduationConfig,
@@ -172,6 +173,9 @@ class AcademyModality extends Equatable {
 
   /// ID do Mestre desta modalidade (pode ser null = Owner gerencia)
   final String? masterId;
+
+  /// Nome do Mestre (quando disponível)
+  final String? masterName;
 
   /// IDs dos professores desta modalidade
   final List<String> teacherIds;
@@ -295,6 +299,7 @@ class AcademyModality extends Equatable {
     String? id,
     MartialArtType? type,
     String? masterId,
+    String? masterName,
     List<String>? teacherIds,
     List<String>? instructorIds,
     GraduationConfig? graduationConfig,
@@ -304,6 +309,7 @@ class AcademyModality extends Equatable {
       id: id ?? this.id,
       type: type ?? this.type,
       masterId: masterId ?? this.masterId,
+      masterName: masterName ?? this.masterName,
       teacherIds: teacherIds ?? this.teacherIds,
       instructorIds: instructorIds ?? this.instructorIds,
       graduationConfig: graduationConfig ?? this.graduationConfig,
@@ -316,6 +322,7 @@ class AcademyModality extends Equatable {
         id,
         type,
         masterId,
+        masterName,
         teacherIds,
         instructorIds,
         graduationConfig,

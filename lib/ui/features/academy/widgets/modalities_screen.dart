@@ -41,11 +41,13 @@ class _ManageTeachersSheet extends StatefulWidget {
   const _ManageTeachersSheet({
     required this.modality,
     required this.academyId,
+    required this.academyViewModel,
     required this.onUpdated,
   });
 
   final AcademyModality modality;
   final String academyId;
+  final AcademyViewModel academyViewModel;
   final void Function(List<String> teacherIds) onUpdated;
 
   @override
@@ -61,6 +63,7 @@ class _ManageTeachersSheetState extends State<_ManageTeachersSheet> {
   Set<String> _selectedUserIds = {};
   String? _ownerUserId; // id do usuário no banco (não o firebase_uid)
   bool _includeOwner = false;
+  String? _masterUserId;
 
   @override
   void initState() {
@@ -93,20 +96,22 @@ class _ManageTeachersSheetState extends State<_ManageTeachersSheet> {
 
       final currentTeacherIds = teachers
           .where(
-            (t) =>
-                (t['role'] as String?) == 'teacher' &&
-                t['user_id'] is String,
+            (t) => t['user_id'] is String,
           )
           .map<String>((t) => t['user_id'] as String)
           .toSet();
 
-      final includeOwner = _ownerUserId != null &&
-          currentTeacherIds.contains(_ownerUserId);
+      // Mestre atual (se existir) – vindo da própria modalidade
+      final masterId = widget.modality.masterId;
+
+      final includeOwner =
+          _ownerUserId != null && currentTeacherIds.contains(_ownerUserId);
 
       setState(() {
         _members = members;
         _selectedUserIds = currentTeacherIds;
         _includeOwner = includeOwner;
+        _masterUserId = masterId;
         _isLoading = false;
       });
     } catch (e) {
@@ -124,6 +129,8 @@ class _ManageTeachersSheetState extends State<_ManageTeachersSheet> {
 
     try {
       final supabase = context.read<SupabaseService>();
+      final academyViewModel = widget.academyViewModel;
+
       final teacherIds = {
         ..._selectedUserIds,
         if (_includeOwner && _ownerUserId != null) _ownerUserId!,
@@ -131,13 +138,19 @@ class _ManageTeachersSheetState extends State<_ManageTeachersSheet> {
 
       await supabase.setModalityTeachers(widget.modality.id, teacherIds);
 
+      // Atualiza mestre da modalidade (opcional)
+      await academyViewModel.setModalityMaster(
+        widget.modality.martialArt.type,
+        _masterUserId,
+      );
+
       widget.onUpdated(teacherIds);
 
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Professores atualizados com sucesso'),
+          content: Text('Professores e mestre atualizados com sucesso'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -250,33 +263,59 @@ class _ManageTeachersSheetState extends State<_ManageTeachersSheet> {
                     final email = user?['email'] as String? ?? '';
                     final isSelected = _selectedUserIds.contains(userId);
 
-                    return CheckboxListTile(
-                      value: isSelected,
-                      onChanged: (value) {
-                        setState(() {
-                          if (value == true) {
-                            _selectedUserIds.add(userId);
-                          } else {
-                            _selectedUserIds.remove(userId);
-                          }
-                        });
-                      },
-                      activeColor: AppColors.primary,
-                      title: Text(
-                        name,
-                        style: const TextStyle(
-                          color: AppColors.textPrimaryDark,
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CheckboxListTile(
+                          value: isSelected,
+                          onChanged: (value) {
+                            setState(() {
+                              if (value == true) {
+                                _selectedUserIds.add(userId);
+                              } else {
+                                _selectedUserIds.remove(userId);
+                                if (_masterUserId == userId) {
+                                  _masterUserId = null;
+                                }
+                              }
+                            });
+                          },
+                          activeColor: AppColors.primary,
+                          title: Text(
+                            name,
+                            style: const TextStyle(
+                              color: AppColors.textPrimaryDark,
+                            ),
+                          ),
+                          subtitle: email.isNotEmpty
+                              ? Text(
+                                  email,
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondaryDark,
+                                    fontSize: 12,
+                                  ),
+                                )
+                              : null,
                         ),
-                      ),
-                      subtitle: email.isNotEmpty
-                          ? Text(
-                              email,
-                              style: const TextStyle(
+                        if (_selectedUserIds.contains(userId))
+                          RadioListTile<String>(
+                            value: userId,
+                            groupValue: _masterUserId,
+                            onChanged: (value) {
+                              setState(() {
+                                _masterUserId = value;
+                              });
+                            },
+                            activeColor: AppColors.secondary,
+                            title: const Text(
+                              'Definir como Mestre da modalidade',
+                              style: TextStyle(
                                 color: AppColors.textSecondaryDark,
                                 fontSize: 12,
                               ),
-                            )
-                          : null,
+                            ),
+                          ),
+                      ],
                     );
                   },
                 ),
@@ -632,9 +671,11 @@ class _ModalitiesContent extends StatelessWidget {
                 _buildInfoRow(
                   Icons.person,
                   'Mestre',
-                  modality.masterId != null
-                      ? 'Definido' // TODO: buscar nome
-                      : 'Não definido',
+                  modality.masterName?.isNotEmpty == true
+                      ? modality.masterName!
+                      : modality.masterId != null
+                          ? 'Definido'
+                          : 'Não definido',
                 ),
                 const SizedBox(height: 8),
                 // Professores
@@ -722,6 +763,7 @@ class _ModalitiesContent extends StatelessWidget {
       builder: (ctx) => _ManageTeachersSheet(
         modality: modality,
         academyId: viewModel.academy.id,
+        academyViewModel: viewModel,
         onUpdated: (teacherIds) {
           final updated = modality.copyWith(teacherIds: teacherIds);
           viewModel.updateLocalModality(updated);

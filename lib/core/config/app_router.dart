@@ -13,6 +13,7 @@ import 'package:self_dojo_mobile/ui/features/academy/widgets/requests_screen.dar
 import 'package:self_dojo_mobile/ui/features/academy/widgets/search_academy_screen.dart';
 import 'package:self_dojo_mobile/ui/features/academy/widgets/student_detail_screen.dart';
 import 'package:self_dojo_mobile/ui/features/academy/widgets/students_screen.dart';
+import 'package:self_dojo_mobile/ui/features/academy/widgets/team_screen.dart';
 import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
 import 'package:self_dojo_mobile/ui/features/auth/widgets/login_screen.dart';
 import 'package:self_dojo_mobile/ui/features/auth/widgets/register_screen.dart';
@@ -233,7 +234,11 @@ class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.academyTeachers,
-          builder: (context, state) => const _PlaceholderScreen(title: 'Equipe'),
+          pageBuilder: (context, state) => _slideTransition(
+            state,
+            const AcademyTeamScreen(),
+            slideFromRight: true,
+          ),
         ),
         GoRoute(
           path: AppRoutes.academySchedules,

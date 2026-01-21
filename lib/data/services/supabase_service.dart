@@ -66,7 +66,13 @@ class SupabaseService {
             modality_teachers (
               id,
               user_id,
-              role
+              role,
+              users!modality_teachers_user_id_fkey (
+                id,
+                display_name,
+                email,
+                photo_url
+              )
             )
           )
         ''')
@@ -91,7 +97,13 @@ class SupabaseService {
             modality_teachers (
               id,
               user_id,
-              role
+              role,
+              users!modality_teachers_user_id_fkey (
+                id,
+                display_name,
+                email,
+                photo_url
+              )
             )
           )
         ''')

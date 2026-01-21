@@ -393,10 +393,29 @@ class AcademyRepositorySupabase implements AcademyRepository {
         .map<String>((t) => (t as Map<String, dynamic>)['user_id'] as String)
         .toList();
 
+    // Nome do mestre (se disponível) usando join users em modality_teachers
+    String? masterName;
+    final masterId = data['master_id'] as String?;
+    if (masterId != null && masterId.isNotEmpty) {
+      try {
+        final masterTeacher = teachersData
+            .cast<Map<String, dynamic>>()
+            .firstWhere(
+              (t) => t['user_id'] == masterId && t['users'] != null,
+            );
+        final userData = masterTeacher['users'] as Map<String, dynamic>?;
+        masterName = userData?['display_name'] as String? ??
+            userData?['email'] as String?;
+      } catch (_) {
+        masterName = null;
+      }
+    }
+
     return AcademyModality(
       id: data['id'] as String,
       type: type,
-      masterId: data['master_id'] as String?,
+      masterId: masterId,
+      masterName: masterName,
       teacherIds: teacherIds,
       instructorIds: const [],
       graduationConfig: graduationConfig,
