@@ -5,6 +5,7 @@ import 'package:self_dojo_mobile/core/theme/app_colors.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
 import 'package:self_dojo_mobile/domain/models/academy/academy.dart';
+import 'package:self_dojo_mobile/domain/models/academy/subscription.dart';
 import 'package:self_dojo_mobile/ui/features/academy/view_models/academy_viewmodel.dart';
 import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
 
@@ -38,8 +39,58 @@ class ManageAcademyScreen extends StatelessWidget {
   }
 }
 
-class _ManageAcademyContent extends StatelessWidget {
+class _ManageAcademyContent extends StatefulWidget {
   const _ManageAcademyContent();
+
+  @override
+  State<_ManageAcademyContent> createState() => _ManageAcademyContentState();
+}
+
+class _ManageAcademyContentState extends State<_ManageAcademyContent> {
+  int _academyCount = 1; // Inicia com 1 (a academia atual)
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadOwnerAcademies();
+    });
+  }
+
+  Future<void> _loadOwnerAcademies() async {
+    final viewModel = context.read<AcademyViewModel>();
+    if (!viewModel.hasAcademy) return;
+
+    final authViewModel = context.read<AuthViewModel>();
+    final academyRepository = context.read<AcademyRepository>();
+    final ownerId = authViewModel.user.id;
+
+    final result = await academyRepository.getOwnerAcademies(ownerId);
+    result.fold(
+      onSuccess: (academies) {
+        if (mounted) {
+          setState(() {
+            _academyCount = academies.length;
+          });
+        }
+      },
+      onFailure: (_) {
+        // Em caso de erro, mantém o valor padrão (1)
+      },
+    );
+  }
+
+  bool get _hasMultipleAcademies => _academyCount > 1;
+
+  bool _canCreateNewAcademy(Academy academy) {
+    // Verifica se o plano permite criar múltiplas academias
+    // Por enquanto, assumimos que Enterprise permite múltiplas academias
+    // ou que todos os planos permitem (pode ser ajustado conforme regra de negócio)
+    final plan = academy.subscription?.plan;
+    // Se já tem múltiplas academias, pode criar mais (já tem permissão)
+    // Ou se o plano for Enterprise
+    return _hasMultipleAcademies || plan == SubscriptionPlan.enterprise;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +118,7 @@ class _ManageAcademyContent extends StatelessWidget {
     final academy = viewModel.academy;
 
     return Scaffold(
+      drawer: _buildDrawer(context, academy),
       body: Container(
         decoration: _backgroundDecoration,
         child: SafeArea(
@@ -238,13 +290,26 @@ class _ManageAcademyContent extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconButton(
-                onPressed: () => context.go('/home'),
-                icon: const Icon(
-                  Icons.arrow_back_ios_new,
-                  color: AppColors.textPrimaryDark,
+              // Botão de voltar apenas se houver múltiplas academias
+              if (_hasMultipleAcademies)
+                IconButton(
+                  onPressed: () => context.go('/academy/select'),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new,
+                    color: AppColors.textPrimaryDark,
+                  ),
+                )
+              else
+                // Botão de menu (drawer) quando há apenas uma academia
+                Builder(
+                  builder: (builderContext) => IconButton(
+                    onPressed: () => Scaffold.of(builderContext).openDrawer(),
+                    icon: const Icon(
+                      Icons.menu,
+                      color: AppColors.textPrimaryDark,
+                    ),
+                  ),
                 ),
-              ),
               const Spacer(),
               IconButton(
                 onPressed: () => context.push('/academy/edit/${academy.id}'),
@@ -471,6 +536,188 @@ class _ManageAcademyContent extends StatelessWidget {
           Icons.chevron_right,
           color: AppColors.textTertiaryDark,
         ),
+      ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context, Academy currentAcademy) {
+    final canCreateNew = _canCreateNewAcademy(currentAcademy);
+
+    return Drawer(
+      backgroundColor: AppColors.backgroundDark,
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Header do drawer
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.2),
+                    AppColors.secondary.withValues(alpha: 0.1),
+                  ],
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      // Logo da academia
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          image: currentAcademy.logoUrl != null
+                              ? DecorationImage(
+                                  image: NetworkImage(currentAcademy.logoUrl!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: currentAcademy.logoUrl == null
+                            ? const Icon(
+                                Icons.business,
+                                color: AppColors.primary,
+                                size: 24,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              currentAcademy.name,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimaryDark,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Academia Atual',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondaryDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Opções do menu
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _buildDrawerItem(
+                    icon: Icons.edit,
+                    title: 'Editar Academia',
+                    subtitle: 'Informações da academia',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/academy/edit/${currentAcademy.id}');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.person,
+                    title: 'Editar Perfil',
+                    subtitle: 'Dados do owner',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/profile/edit');
+                    },
+                  ),
+                  if (canCreateNew)
+                    _buildDrawerItem(
+                      icon: Icons.add_business,
+                      title: 'Criar Nova Academia',
+                      subtitle: 'Adicionar uma nova academia',
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/academy/create');
+                      },
+                    ),
+                  if (_hasMultipleAcademies)
+                    _buildDrawerItem(
+                      icon: Icons.business,
+                      title: 'Minhas Academias',
+                      subtitle: 'Ver todas as academias',
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.go('/academy/select');
+                      },
+                    ),
+                  const Divider(
+                    color: AppColors.surfaceVariantDark,
+                    height: 32,
+                    indent: 20,
+                    endIndent: 20,
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.home,
+                    title: 'Voltar para Home',
+                    subtitle: 'Tela inicial',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/home');
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 22),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: AppColors.textPrimaryDark,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(
+          color: AppColors.textSecondaryDark,
+          fontSize: 12,
+        ),
+      ),
+      trailing: Icon(
+        Icons.chevron_right,
+        color: AppColors.textTertiaryDark,
       ),
     );
   }

@@ -89,17 +89,14 @@ class AppRouter {
         currentPath == AppRoutes.register ||
         currentPath == AppRoutes.splash;
 
-    // Se autenticado e em rota de auth, verifica se é owner para redirecionar
-    if (isAuthenticated && isAuthRoute) {
-      try {
-        final profileService = Provider.of<ProfileService>(context, listen: false);
-        if (profileService.profile.isOwner) {
-          // Owner vai direto para seleção de academia (que já faz a verificação de quantas tem)
-          return AppRoutes.selectAcademy;
-        }
-      } catch (_) {
-        // Se não conseguir acessar ProfileService ainda, vai para home normalmente
-      }
+    // Se está na splash e autenticado, deixa a splash screen fazer o redirecionamento
+    if (isAuthenticated && currentPath == AppRoutes.splash) {
+      return null; // Permanece na splash para ela fazer a verificação completa
+    }
+
+    // Se autenticado e em rota de auth (login/register), redireciona para home
+    // A splash screen já cuidou do redirecionamento de owners
+    if (isAuthenticated && (currentPath == AppRoutes.login || currentPath == AppRoutes.register)) {
       return AppRoutes.home;
     }
 
@@ -108,8 +105,8 @@ class AppRouter {
       return AppRoutes.login;
     }
 
-    // Se está no splash e não está inicializando, vai para login
-    if (currentPath == AppRoutes.splash && !isInitializing) {
+    // Se está no splash e não está inicializando e não está autenticado, vai para login
+    if (currentPath == AppRoutes.splash && !isInitializing && !isAuthenticated) {
       return AppRoutes.login;
     }
 
