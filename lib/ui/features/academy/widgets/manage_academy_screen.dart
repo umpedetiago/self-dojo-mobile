@@ -529,6 +529,19 @@ class _ManageAcademyContentState extends State<_ManageAcademyContent> {
                       AppNavigation.goToHome(context);
                     },
                   ),
+                  AppMenuItemCard(
+                    icon: Icons.logout,
+                    title: 'Sair',
+                    subtitle: 'Sair do aplicativo',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.read<AuthViewModel>().signOut().then((_) {
+                        if (context.mounted) {
+                          AppNavigation.goToSplash(context);
+                        }
+                      });
+                    },
+                  ),
                 ],
               ),
             ),
