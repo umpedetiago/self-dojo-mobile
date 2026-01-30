@@ -1,4 +1,5 @@
 /// Exporta todos os componentes do design system
+library;
 export 'app_button.dart';
 export 'app_card.dart';
 export 'app_divider.dart';
