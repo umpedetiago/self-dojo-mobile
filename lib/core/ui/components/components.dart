@@ -7,4 +7,5 @@ export 'app_icon_container.dart';
 export 'app_info_row.dart';
 export 'app_input.dart';
 export 'app_loading_indicator.dart';
+export 'app_quick_action_button.dart';
 export 'app_section_title.dart';

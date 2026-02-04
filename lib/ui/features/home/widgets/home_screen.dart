@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
+import 'package:self_dojo_mobile/core/ui/components/app_card.dart';
+import 'package:self_dojo_mobile/core/ui/components/app_info_row.dart';
 import 'package:self_dojo_mobile/data/services/profile_service.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/belt.dart';
-import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
 import 'package:self_dojo_mobile/domain/models/user_profile.dart';
 import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
 import 'package:self_dojo_mobile/ui/features/home/widgets/belt_display.dart';
+import 'package:self_dojo_mobile/ui/features/home/widgets/enrolled_modalities_widget.dart';
+import 'package:self_dojo_mobile/ui/features/home/widgets/graduation_history_widget.dart';
 import 'package:self_dojo_mobile/ui/features/home/widgets/profile_header.dart';
+import 'package:self_dojo_mobile/ui/features/home/widgets/quick_actions_widget.dart';
 import 'package:self_dojo_mobile/ui/features/home/widgets/stats_card.dart';
 
 /// Tela Home principal
@@ -175,7 +179,7 @@ class _HomeContentState extends State<_HomeContent> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _buildQuickActions(context, profile),
+                  child: QuickActionsWidget(profile: profile),
                 ),
               ),
 
@@ -184,7 +188,7 @@ class _HomeContentState extends State<_HomeContent> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: _buildEnrolledModalities(profile),
+                    child: EnrolledModalitiesWidget(profile: profile),
                   ),
                 ),
 
@@ -201,7 +205,10 @@ class _HomeContentState extends State<_HomeContent> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: _buildGraduationHistory(profile, martialArt),
+                    child: GraduationHistoryWidget(
+                      profile: profile,
+                      martialArt: martialArt,
+                    ),
                   ),
                 ),
 
@@ -228,317 +235,45 @@ class _HomeContentState extends State<_HomeContent> {
         ),
       );
 
-  Widget _buildQuickActions(BuildContext context, UserProfile profile) {
-    // Verifica se é owner
-    final isOwner = profile.isOwner;
-    // Verifica se tem academia vinculada (como aluno)
-    final hasAcademy = profile.academyId != null && profile.academyId!.isNotEmpty;
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              if (isOwner)
-                Expanded(
-                  child: _buildQuickActionButton(
-                    icon: Icons.business,
-                    label: 'Minha Academia',
-                    color: AppColors.primary,
-                    onTap: () => context.push('/academy/select'),
-                  ),
-                )
-              else if (hasAcademy)
-                Expanded(
-                  child: _buildQuickActionButton(
-                    icon: Icons.home_work,
-                    label: 'Minha Academia',
-                    color: AppColors.primary,
-                    onTap: () {
-                      // TODO: ir para visualização da academia do aluno
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Visualização da academia em desenvolvimento'),
-                          backgroundColor: AppColors.warning,
-                        ),
-                      );
-                    },
-                  ),
-                )
-              else
-                Expanded(
-                  child: _buildQuickActionButton(
-                    icon: Icons.search,
-                    label: 'Buscar Academia',
-                    color: AppColors.primary,
-                    onTap: () => context.push('/academy/search'),
-                  ),
-                ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildQuickActionButton(
-                  icon: Icons.qr_code_scanner,
-                  label: 'Check-in',
-                  color: AppColors.secondary,
-                  onTap: () => context.push('/checkin'),
-                ),
-              ),
-            ],
-          ),
-          // Segunda linha de ações (se for aluno com academia)
-          if (hasAcademy && !isOwner)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildQuickActionButton(
-                      icon: Icons.history,
-                      label: 'Histórico',
-                      color: AppColors.accent,
-                      onTap: () => context.push('/checkin/history'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (!isOwner && !hasAcademy)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildQuickActionButton(
-                      icon: Icons.add_business,
-                      label: 'Criar Academia',
-                      color: AppColors.accent,
-                      onTap: () => context.push('/academy/create'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          // Botão adicional para owner: buscar academia também
-          if (isOwner)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: SizedBox(
-                width: double.infinity,
-                child: _buildQuickActionButton(
-                  icon: Icons.search,
-                  label: 'Buscar Academia',
-                  color: AppColors.accent,
-                  onTap: () => context.push('/academy/search'),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildInfoSection(UserProfile profile) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.surfaceVariantDark.withValues(alpha: 0.3),
+    return AppInfoCard(
+      title: 'Informações',
+      children: [
+        AppInfoRow(
+          icon: Icons.sports_martial_arts,
+          label: 'Arte Marcial',
+          value: profile.martialArt.name,
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Informações',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimaryDark,
-            ),
+        if (profile.academyName != null && profile.academyName!.isNotEmpty)
+          AppInfoRow(
+            icon: Icons.home_work,
+            label: 'Academia',
+            value: profile.academyName!,
           ),
-          const SizedBox(height: 16),
-          _buildInfoRow(Icons.sports_martial_arts, 'Arte Marcial',
-              profile.martialArt.name),
-          if (profile.academyName != null && profile.academyName!.isNotEmpty)
-            _buildInfoRow(Icons.home_work, 'Academia', profile.academyName!),
-          if (profile.instructorName != null && profile.instructorName!.isNotEmpty)
-            _buildInfoRow(Icons.person, 'Professor', profile.instructorName!),
-          if (profile.weightCategory != null &&
-              profile.weightCategory!.isNotEmpty)
-            _buildInfoRow(Icons.monitor_weight, 'Categoria',
-                profile.weightCategory!),
-          if (profile.startDate != null)
-            _buildInfoRow(Icons.calendar_today, 'Início',
-                _formatDate(profile.startDate!)),
-        ],
-      ),
+        if (profile.instructorName != null && profile.instructorName!.isNotEmpty)
+          AppInfoRow(
+            icon: Icons.person,
+            label: 'Professor',
+            value: profile.instructorName!,
+          ),
+        if (profile.weightCategory != null &&
+            profile.weightCategory!.isNotEmpty)
+          AppInfoRow(
+            icon: Icons.monitor_weight,
+            label: 'Categoria',
+            value: profile.weightCategory!,
+          ),
+        if (profile.startDate != null)
+          AppInfoRow(
+            icon: Icons.calendar_today,
+            label: 'Início',
+            value: _formatDate(profile.startDate!),
+          ),
+      ],
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 20,
-            color: AppColors.textTertiaryDark,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            '$label: ',
-            style: const TextStyle(
-              color: AppColors.textSecondaryDark,
-              fontSize: 14,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: AppColors.textPrimaryDark,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGraduationHistory(UserProfile profile, MartialArt martialArt) {
-    // Usa histórico da modalidade matriculada se disponível, senão legado
-    final graduationHistory = profile.enrolledModalities.isNotEmpty
-        ? profile.enrolledModalities.first.graduationHistory
-        : profile.graduationHistory;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.surfaceVariantDark.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Histórico de Graduações',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimaryDark,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...graduationHistory.reversed.take(5).map((history) {
-            final belt = martialArt.getBeltById(history.beltId);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: belt?.color ?? Colors.grey,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          belt?.name ?? 'Faixa',
-                          style: const TextStyle(
-                            color: AppColors.textPrimaryDark,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          _formatDate(history.date),
-                          style: TextStyle(
-                            color: AppColors.textTertiaryDark,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (history.degree > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${history.degree}º grau',
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
 
   String _formatTrainingTime(Duration? duration) {
     if (duration == null) return '-';
@@ -575,92 +310,6 @@ class _HomeContentState extends State<_HomeContent> {
     return profile.graduationHistory.isNotEmpty;
   }
 
-  /// Exibe todas as modalidades matriculadas do aluno
-  Widget _buildEnrolledModalities(UserProfile profile) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.surfaceVariantDark.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Minhas Modalidades',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimaryDark,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...profile.enrolledModalities.map((modality) {
-            final martialArt = modality.martialArt;
-            final belt = modality.currentBelt;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: martialArt.primaryColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      martialArt.icon,
-                      color: martialArt.primaryColor,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          martialArt.name,
-                          style: const TextStyle(
-                            color: AppColors.textPrimaryDark,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          belt != null
-                              ? '${belt.name}${modality.graduation.degree > 0 ? ' - ${modality.graduation.degree}º grau' : ''}'
-                              : 'Sem graduação',
-                          style: TextStyle(
-                            color: AppColors.textSecondaryDark,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (belt != null)
-                    Container(
-                      width: 40,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: belt.color,
-                        borderRadius: BorderRadius.circular(2),
-                        border: belt.color == Colors.white
-                            ? Border.all(color: Colors.grey.shade400)
-                            : null,
-                      ),
-                    ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
 
   void _showLogoutDialog(BuildContext context, AuthViewModel authViewModel) {
     showDialog(
