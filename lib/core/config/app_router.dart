@@ -94,9 +94,9 @@ class AppRouter {
       return null; // Permanece na splash para ela fazer a verificação completa
     }
 
-    // Se autenticado e em rota de auth (login/register), redireciona para home
-    // A splash screen já cuidou do redirecionamento de owners
-    if (isAuthenticated && (currentPath == AppRoutes.login || currentPath == AppRoutes.register)) {
+    // Se autenticado e em rota de login, redireciona para home.
+    // O fluxo de cadastro controla a navegação por conta própria.
+    if (isAuthenticated && currentPath == AppRoutes.login) {
       return AppRoutes.home;
     }
 

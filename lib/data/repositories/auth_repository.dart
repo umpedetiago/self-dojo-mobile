@@ -22,12 +22,19 @@ abstract class AuthRepository {
     required String password,
   });
 
-  /// Cadastro com email e senha
+  /// Cadastro com email e senha (apenas Firebase - autenticação)
   Future<Result<AppUser>> createUserWithEmailAndPassword({
     required String email,
     required String password,
     String? displayName,
-    UserRole role = UserRole.student,
+  });
+
+  /// Cria perfil completo no Supabase (após autenticação)
+  Future<Result<void>> createProfile({
+    required String userId,
+    required String email,
+    String? displayName,
+    required UserRole role,
     MartialArtType? martialArtType,
   });
 
@@ -92,10 +99,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String password,
     String? displayName,
-    UserRole role = UserRole.student,
-    MartialArtType? martialArtType,
   }) async {
     try {
+      // ETAPA 1: Criar usuário no Firebase (autenticação)
       await _authService.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -117,23 +123,44 @@ class AuthRepositoryImpl implements AuthRepository {
         );
       }
 
-      // Cria o perfil inicial com o role e modalidade selecionados
-      final initialProfile = UserProfile(
-        id: user.id,
-        email: email,
-        displayName: displayName,
-        role: role,
-        martialArtType: martialArtType ?? MartialArtType.jiuJitsu,
-        createdAt: DateTime.now(),
-      );
-      await _profileRepository.saveProfile(initialProfile);
-
       return Result.success(user.copyWith(displayName: displayName));
     } on FirebaseAuthException catch (e) {
       return Result.failure(_mapFirebaseError(e));
     } catch (e) {
       return Result.failure(
         Failure(message: 'Erro inesperado: ${e.toString()}', code: 'unknown'),
+      );
+    }
+  }
+
+  /// ETAPA 2: Cria perfil completo no Supabase (banco de dados)
+  /// Deve ser chamado APÓS createUserWithEmailAndPassword ter sucesso
+  @override
+  Future<Result<void>> createProfile({
+    required String userId,
+    required String email,
+    String? displayName,
+    required UserRole role,
+    MartialArtType? martialArtType,
+  }) async {
+    try {
+      final profile = UserProfile(
+        id: userId,
+        email: email,
+        displayName: displayName,
+        role: role,
+        martialArtType: martialArtType ?? MartialArtType.jiuJitsu,
+        createdAt: DateTime.now(),
+      );
+
+      final result = await _profileRepository.saveProfile(profile);
+      return result.fold(
+        onSuccess: (_) => Result.success(null),
+        onFailure: (failure) => Result.failure(failure),
+      );
+    } catch (e) {
+      return Result.failure(
+        Failure(message: 'Erro ao criar perfil: ${e.toString()}', code: 'unknown'),
       );
     }
   }

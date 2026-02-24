@@ -1,15 +1,19 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
+import 'package:self_dojo_mobile/core/ui/components/app_role_toggle.dart';
 import 'package:self_dojo_mobile/data/repositories/auth_repository.dart';
+import 'package:self_dojo_mobile/data/services/profile_service.dart';
 import 'package:self_dojo_mobile/domain/models/academy/user_role.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
+import 'package:self_dojo_mobile/domain/models/user_profile.dart';
 import 'package:self_dojo_mobile/ui/features/auth/view_models/register_viewmodel.dart';
 import 'package:self_dojo_mobile/ui/features/auth/widgets/auth_text_field.dart';
 
-/// Tela de Cadastro
+/// Tela de Cadastro simplificada
 class RegisterScreen extends StatelessWidget {
   const RegisterScreen({super.key});
 
@@ -35,23 +39,19 @@ class _RegisterContentState extends State<_RegisterContent> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
 
   final _nameFocus = FocusNode();
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
-  final _confirmPasswordFocus = FocusNode();
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     _nameFocus.dispose();
     _emailFocus.dispose();
     _passwordFocus.dispose();
-    _confirmPasswordFocus.dispose();
     super.dispose();
   }
 
@@ -80,7 +80,7 @@ class _RegisterContentState extends State<_RegisterContent> {
               // Conteúdo scrollável
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -89,17 +89,17 @@ class _RegisterContentState extends State<_RegisterContent> {
                       // Header
                       _buildHeader(),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
 
                       // Seleção de Role
                       _buildRoleSelector(viewModel),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
 
                       // Seleção de Modalidade (apenas se não for owner)
                       if (viewModel.isMartialArtRequired) ...[
                         _buildMartialArtSelector(viewModel),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
                       ],
 
                       // Formulário
@@ -116,12 +116,12 @@ class _RegisterContentState extends State<_RegisterContent> {
                       // Termos de uso
                       _buildTermsCheckbox(viewModel),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
 
                       // Botão de cadastro
                       _buildRegisterButton(viewModel),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
 
                       // Já tem conta
                       _buildLoginLink(),
@@ -146,246 +146,163 @@ class _RegisterContentState extends State<_RegisterContent> {
           IconButton(
             onPressed: () => context.pop(),
             icon: const Icon(
-              Icons.arrow_back_ios_new,
+              Icons.arrow_back,
               color: AppColors.textPrimaryDark,
             ),
           ),
+          const Expanded(
+            child: Text(
+              'Create Your Account',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimaryDark,
+              ),
+            ),
+          ),
+          const SizedBox(width: 48), // Balancear o botão de voltar
         ],
       ),
     );
   }
 
   Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ShaderMask(
-          shaderCallback: (bounds) =>
-              AppColors.primaryGradient.createShader(bounds),
-          child: const Text(
-            'Criar conta',
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Join Self Dojo',
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: AppColors.textPrimaryDark,
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Comece sua jornada de autodesenvolvimento',
-          style: TextStyle(
-            fontSize: 16,
-            color: AppColors.textSecondaryDark.withValues(alpha: 0.8),
+          const SizedBox(height: 8),
+          Text(
+            'Select your role and enter your details to get started on your martial arts journey.',
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.textSecondaryDark,
+              height: 1.5,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildRoleSelector(RegisterViewModel viewModel) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Eu sou:',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimaryDark.withValues(alpha: 0.9),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'I am a...',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimaryDark,
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: RegisterViewModel.availableRoles.map((role) {
-            final isSelected = viewModel.selectedRole == role;
-            return _RoleChip(
-              role: role,
-              isSelected: isSelected,
-              onTap: () => viewModel.setSelectedRole(role),
-            );
-          }).toList(),
-        ),
-      ],
+          const SizedBox(height: 12),
+          AppRoleToggle(
+            selectedRole: viewModel.selectedRole,
+            onRoleChanged: viewModel.setSelectedRole,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildMartialArtSelector(RegisterViewModel viewModel) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Modalidade:',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimaryDark.withValues(alpha: 0.9),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceVariantDark,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: viewModel.selectedMartialArt == null
-                  ? AppColors.textTertiaryDark.withValues(alpha: 0.3)
-                  : AppColors.primary.withValues(alpha: 0.5),
-              width: 1.5,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Primary Interest',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimaryDark,
             ),
           ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<MartialArtType>(
-              value: viewModel.selectedMartialArt,
-              hint: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.sports_martial_arts,
-                      color: AppColors.textTertiaryDark.withValues(alpha: 0.6),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Selecione sua modalidade',
-                      style: TextStyle(
+          const SizedBox(height: 8),
+          Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariantDark.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: viewModel.selectedMartialArt == null
+                    ? AppColors.textTertiaryDark.withValues(alpha: 0.3)
+                    : AppColors.primary.withValues(alpha: 0.5),
+                width: 1,
+              ),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<MartialArtType>(
+                value: viewModel.selectedMartialArt,
+                hint: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.sports_martial_arts,
                         color: AppColors.textTertiaryDark.withValues(alpha: 0.6),
-                        fontSize: 15,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Select a martial art',
+                        style: TextStyle(
+                          color: AppColors.textTertiaryDark.withValues(alpha: 0.6),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                isExpanded: true,
+                icon: Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: Icon(
+                    Icons.expand_more,
+                    color: AppColors.textSecondaryDark.withValues(alpha: 0.7),
+                  ),
+                ),
+                dropdownColor: AppColors.surfaceDark,
+                borderRadius: BorderRadius.circular(12),
+                style: const TextStyle(
+                  color: AppColors.textPrimaryDark,
+                  fontSize: 16,
+                ),
+                items: RegisterViewModel.availableMartialArts.map((art) {
+                  return DropdownMenuItem<MartialArtType>(
+                    value: art.type,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          Icon(
+                            art.icon,
+                            color: art.primaryColor,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(art.name),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-              isExpanded: true,
-              icon: Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: AppColors.textSecondaryDark.withValues(alpha: 0.7),
-                ),
-              ),
-              dropdownColor: AppColors.surfaceDark,
-              borderRadius: BorderRadius.circular(12),
-              style: const TextStyle(
-                color: AppColors.textPrimaryDark,
-                fontSize: 15,
-              ),
-              items: RegisterViewModel.availableMartialArts.map((art) {
-                return DropdownMenuItem<MartialArtType>(
-                  value: art.type,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        Icon(
-                          art.icon,
-                          color: art.primaryColor,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(art.name),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-              onChanged: (value) => viewModel.setSelectedMartialArt(value),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildForm(RegisterViewModel viewModel) {
-    return Column(
-      children: [
-        AuthTextField(
-          controller: _nameController,
-          focusNode: _nameFocus,
-          label: 'Nome completo',
-          hint: 'Seu nome',
-          textInputAction: TextInputAction.next,
-          prefixIcon: Icons.person_outline,
-          onChanged: viewModel.setName,
-          onSubmitted: (_) => _emailFocus.requestFocus(),
-        ),
-        const SizedBox(height: 16),
-        AuthTextField(
-          controller: _emailController,
-          focusNode: _emailFocus,
-          label: 'Email',
-          hint: 'seu@email.com',
-          keyboardType: TextInputType.emailAddress,
-          textInputAction: TextInputAction.next,
-          prefixIcon: Icons.email_outlined,
-          onChanged: viewModel.setEmail,
-          onSubmitted: (_) => _passwordFocus.requestFocus(),
-        ),
-        const SizedBox(height: 16),
-        AuthTextField(
-          controller: _passwordController,
-          focusNode: _passwordFocus,
-          label: 'Senha',
-          hint: 'Mínimo 6 caracteres',
-          obscureText: viewModel.obscurePassword,
-          textInputAction: TextInputAction.next,
-          prefixIcon: Icons.lock_outline,
-          suffixIcon: viewModel.obscurePassword
-              ? Icons.visibility_outlined
-              : Icons.visibility_off_outlined,
-          onSuffixTap: viewModel.togglePasswordVisibility,
-          onChanged: viewModel.setPassword,
-          onSubmitted: (_) => _confirmPasswordFocus.requestFocus(),
-          errorText: viewModel.passwordError,
-        ),
-        const SizedBox(height: 16),
-        AuthTextField(
-          controller: _confirmPasswordController,
-          focusNode: _confirmPasswordFocus,
-          label: 'Confirmar senha',
-          hint: 'Repita a senha',
-          obscureText: viewModel.obscureConfirmPassword,
-          prefixIcon: Icons.lock_outline,
-          suffixIcon: viewModel.obscureConfirmPassword
-              ? Icons.visibility_outlined
-              : Icons.visibility_off_outlined,
-          onSuffixTap: viewModel.toggleConfirmPasswordVisibility,
-          onChanged: viewModel.setConfirmPassword,
-          onSubmitted: (_) => _handleRegister(viewModel),
-          errorText: viewModel.confirmPasswordError,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildError(RegisterViewModel viewModel) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.error.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.error_outline,
-            color: AppColors.error.withValues(alpha: 0.8),
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              viewModel.errorMessage!,
-              style: TextStyle(
-                color: AppColors.error.withValues(alpha: 0.9),
-                fontSize: 14,
+                  );
+                }).toList(),
+                onChanged: (value) => viewModel.setSelectedMartialArt(value),
               ),
             ),
           ),
@@ -394,9 +311,93 @@ class _RegisterContentState extends State<_RegisterContent> {
     );
   }
 
+  Widget _buildForm(RegisterViewModel viewModel) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        children: [
+          AuthTextField(
+            controller: _nameController,
+            focusNode: _nameFocus,
+            label: 'Full Name',
+            hint: 'Enter your full name',
+            textInputAction: TextInputAction.next,
+            prefixIcon: Icons.person,
+            onChanged: viewModel.setName,
+            onSubmitted: (_) => _emailFocus.requestFocus(),
+          ),
+          const SizedBox(height: 16),
+          AuthTextField(
+            controller: _emailController,
+            focusNode: _emailFocus,
+            label: 'Email Address',
+            hint: 'name@example.com',
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            prefixIcon: Icons.mail,
+            onChanged: viewModel.setEmail,
+            onSubmitted: (_) => _passwordFocus.requestFocus(),
+          ),
+          const SizedBox(height: 16),
+          AuthTextField(
+            controller: _passwordController,
+            focusNode: _passwordFocus,
+            label: 'Password',
+            hint: 'Create a strong password',
+            obscureText: viewModel.obscurePassword,
+            textInputAction: TextInputAction.done,
+            prefixIcon: Icons.lock,
+            suffixIcon: viewModel.obscurePassword
+                ? Icons.visibility_off
+                : Icons.visibility,
+            onSuffixTap: viewModel.togglePasswordVisibility,
+            onChanged: viewModel.setPassword,
+            onSubmitted: (_) => _handleRegister(viewModel),
+            errorText: viewModel.passwordError,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError(RegisterViewModel viewModel) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.error.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.error.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: AppColors.error.withValues(alpha: 0.8),
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                viewModel.errorMessage!,
+                style: TextStyle(
+                  color: AppColors.error.withValues(alpha: 0.9),
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTermsCheckbox(RegisterViewModel viewModel) {
-    return GestureDetector(
-      onTap: viewModel.toggleAcceptedTerms,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -421,13 +422,13 @@ class _RegisterContentState extends State<_RegisterContent> {
               text: TextSpan(
                 style: TextStyle(
                   fontSize: 14,
-                  color: AppColors.textSecondaryDark.withValues(alpha: 0.8),
+                  color: AppColors.textSecondaryDark,
                   height: 1.4,
                 ),
                 children: [
-                  const TextSpan(text: 'Li e concordo com os '),
+                  const TextSpan(text: 'I agree to the '),
                   TextSpan(
-                    text: 'Termos de Uso',
+                    text: 'Terms of Service',
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w500,
@@ -437,9 +438,9 @@ class _RegisterContentState extends State<_RegisterContent> {
                         // TODO: Abrir termos de uso
                       },
                   ),
-                  const TextSpan(text: ' e '),
+                  const TextSpan(text: ' and '),
                   TextSpan(
-                    text: 'Política de Privacidade',
+                    text: 'Privacy Policy',
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w500,
@@ -449,6 +450,7 @@ class _RegisterContentState extends State<_RegisterContent> {
                         // TODO: Abrir política de privacidade
                       },
                   ),
+                  const TextSpan(text: '.'),
                 ],
               ),
             ),
@@ -459,179 +461,174 @@ class _RegisterContentState extends State<_RegisterContent> {
   }
 
   Widget _buildRegisterButton(RegisterViewModel viewModel) {
-    return ListenableBuilder(
-      listenable: viewModel.register,
-      builder: (context, _) {
-        final isLoading = viewModel.register.running;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: ListenableBuilder(
+        listenable: viewModel.createFirebaseAccount,
+        builder: (context, _) {
+          final isLoading = viewModel.createFirebaseAccount.running ||
+              viewModel.createSupabaseProfile.running;
 
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          height: 56,
-          child: ElevatedButton(
-            onPressed:
-                viewModel.isFormValid && !isLoading
-                    ? () => _handleRegister(viewModel)
-                    : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+          return SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: viewModel.isFormValid && !isLoading
+                  ? () => _handleRegister(viewModel)
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+                shadowColor: AppColors.primary.withValues(alpha: 0.2),
               ),
-              elevation: 0,
+              child: isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Create Account',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
             ),
-            child: isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text(
-                    'Criar conta',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
   Widget _buildLoginLink() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          'Já tem uma conta? ',
-          style: TextStyle(
-            color: AppColors.textSecondaryDark.withValues(alpha: 0.8),
-            fontSize: 14,
-          ),
-        ),
-        GestureDetector(
-          onTap: () => context.pop(),
-          child: const Text(
-            'Entrar',
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Already have an account? ',
             style: TextStyle(
-              color: AppColors.primary,
+              color: AppColors.textSecondaryDark,
               fontSize: 14,
-              fontWeight: FontWeight.w600,
             ),
           ),
-        ),
-      ],
+          GestureDetector(
+            onTap: () => context.pop(),
+            child: const Text(
+              'Log In',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Future<void> _handleRegister(RegisterViewModel viewModel) async {
     FocusScope.of(context).unfocus();
-    final result = await viewModel.register.execute();
 
-    if (mounted) {
-      result.fold(
-        onSuccess: (_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Conta criada! Verifique seu email para confirmar.',
-              ),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        },
-        onFailure: (_) {
-          // Erro já é mostrado no widget de erro
-        },
-      );
+    // ETAPA 1: Criar conta no Firebase (autenticação)
+    final firebaseResult = await viewModel.createFirebaseAccount.execute();
+    if (!mounted) return;
+
+    if (!firebaseResult.isSuccess) {
+      // Erro já é mostrado no widget de erro pelo ViewModel
+      return;
     }
-  }
-}
 
-/// Chip de seleção de role
-class _RoleChip extends StatelessWidget {
-  const _RoleChip({
-    required this.role,
-    required this.isSelected,
-    required this.onTap,
-  });
+    final user = viewModel.createFirebaseAccount.data!;
+    final profileService = context.read<ProfileService>();
 
-  final UserRole role;
-  final bool isSelected;
-  final VoidCallback onTap;
+    // ETAPA 2: Criar perfil completo no Supabase (banco de dados)
+    final profileResult = await viewModel.createSupabaseProfile.execute(user);
+    if (!mounted) return;
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: isSelected ? AppColors.primaryGradient : null,
-          color: isSelected ? null : AppColors.surfaceVariantDark,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected
-                ? Colors.transparent
-                : AppColors.textTertiaryDark.withValues(alpha: 0.3),
-            width: 1.5,
+    if (!profileResult.isSuccess) {
+      // Se falhar ao criar perfil no Supabase, ainda assim atualiza em memória
+      // para que o usuário possa usar o app
+      final profile = UserProfile(
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName ?? viewModel.name.trim(),
+        role: viewModel.selectedRole,
+        martialArtType: viewModel.selectedMartialArt ??
+            (viewModel.selectedRole == UserRole.owner ? null : MartialArtType.jiuJitsu),
+        createdAt: DateTime.now(),
+      );
+      profileService.setProfileAfterRegistration(profile);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Conta criada! Mas houve um problema ao salvar seu perfil. '
+            'Alguns dados podem não aparecer corretamente.',
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+          backgroundColor: AppColors.warning,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _getIconForRole(role),
-              size: 20,
-              color: isSelected
-                  ? Colors.white
-                  : AppColors.textSecondaryDark.withValues(alpha: 0.8),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              role.displayName,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected
-                    ? Colors.white
-                    : AppColors.textSecondaryDark.withValues(alpha: 0.9),
-              ),
-            ),
-          ],
+      );
+      context.go('/home');
+      return;
+    }
+
+    // Sucesso nas duas etapas: atualiza ProfileService em memória primeiro
+    final displayName = user.displayName?.isNotEmpty == true 
+        ? user.displayName 
+        : (viewModel.name.trim().isEmpty ? null : viewModel.name.trim());
+    
+    final profile = UserProfile(
+      id: user.id,
+      email: user.email,
+      displayName: displayName,
+      role: viewModel.selectedRole,
+      martialArtType: viewModel.selectedMartialArt ??
+          (viewModel.selectedRole == UserRole.owner ? null : MartialArtType.jiuJitsu),
+      createdAt: DateTime.now(),
+    );
+    
+    debugPrint('[RegisterScreen] Perfil criado - displayName: ${profile.displayName}, martialArtType: ${profile.martialArtType}');
+    
+    // Atualiza em memória para garantir que os dados apareçam imediatamente
+    profileService.setProfileAfterRegistration(profile);
+
+    // Pequeno delay para garantir que o Supabase processou o INSERT
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Agora inicializa do Supabase para garantir sincronização
+    // Mas como já temos o perfil em memória, se o Supabase ainda não tiver
+    // os dados, o init vai preservar o que já está em memória
+    await profileService.init(
+      user.id,
+      email: user.email,
+      displayName: profile.displayName,
+      photoUrl: user.photoUrl,
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Conta criada! Verifique seu email para confirmar.',
         ),
+        backgroundColor: AppColors.success,
       ),
     );
-  }
 
-  IconData _getIconForRole(UserRole role) {
-    switch (role) {
-      case UserRole.student:
-        return Icons.school_outlined;
-      case UserRole.instructor:
-        return Icons.sports_martial_arts;
-      case UserRole.teacher:
-        return Icons.person_outline;
-      case UserRole.modalityMaster:
-        return Icons.workspace_premium_outlined;
-      case UserRole.owner:
-        return Icons.business_outlined;
-    }
+    // Só navega para Home quando o ProfileService estiver completamente inicializado
+    context.go('/home');
   }
 }
-

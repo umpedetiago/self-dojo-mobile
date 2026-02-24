@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:self_dojo_mobile/core/utils/result.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
+import 'package:self_dojo_mobile/domain/models/academy/user_role.dart';
 import 'package:self_dojo_mobile/domain/models/user_profile.dart';
 
 /// Serviço centralizado de perfil que notifica todos os listeners sobre mudanças
@@ -25,12 +26,32 @@ class ProfileService extends ChangeNotifier {
 
   String? _currentUserId;
 
+  /// Define o perfil em memória logo após o cadastro (nome, arte marcial e role).
+  /// Garante que os dados informados no registro apareçam na Home mesmo se o
+  /// save no Supabase falhar ou atrasar.
+  void setProfileAfterRegistration(UserProfile profile) {
+    _currentUserId = profile.id;
+    _profile = profile;
+    _isLoading = false;
+    _error = null;
+    notifyListeners();
+  }
+
   /// Inicializa o serviço para um usuário específico
   Future<void> init(String userId, {String? email, String? displayName, String? photoUrl}) async {
-    if (_currentUserId == userId && _profile.id == userId) {
-      // Já inicializado para este usuário
+    debugPrint('[ProfileService] init chamado - userId: $userId, email: $email, displayName: $displayName');
+    debugPrint('[ProfileService] Perfil atual em memória - id: ${_profile.id}, email: ${_profile.email}, displayName: ${_profile.displayName}');
+    
+    // Se já está inicializado para este usuário E o perfil já tem dados válidos,
+    // não precisa recarregar (evita sobrescrever dados em memória)
+    if (_currentUserId == userId && _profile.id == userId && _profile.email.isNotEmpty && _profile.displayName != null) {
+      debugPrint('[ProfileService] Já inicializado com dados válidos, retornando');
       return;
     }
+
+    // Preserva dados em memória se já existirem (de setProfileAfterRegistration)
+    final preservedProfile = _profile.id == userId && _profile.email.isNotEmpty ? _profile : null;
+    debugPrint('[ProfileService] Perfil preservado: ${preservedProfile != null}');
 
     _currentUserId = userId;
     _isLoading = true;
@@ -41,23 +62,49 @@ class ProfileService extends ChangeNotifier {
 
     switch (result) {
       case Success<UserProfile>(:final data):
-        if (data.email.isNotEmpty) {
+        debugPrint('[ProfileService] getProfile retornou - email: ${data.email}, displayName: ${data.displayName}');
+        if (data.email.isNotEmpty && data.displayName != null && data.displayName!.isNotEmpty) {
+          // Perfil encontrado no Supabase com dados completos: usa ele
+          debugPrint('[ProfileService] Usando perfil do Supabase');
           _profile = data;
         } else {
-          // Perfil vazio, criar inicial e salvar no banco
-          _profile = UserProfile(
-            id: userId,
-            email: email ?? '',
-            displayName: displayName,
-            photoUrl: photoUrl,
-          );
-          // Salva o perfil no banco de dados para que exista um registro
-          await _profileRepository.saveProfile(_profile);
+          // Perfil vazio ou incompleto no Supabase.
+          // Se temos dados preservados em memória, usa eles. Senão, cria novo.
+          if (preservedProfile != null) {
+            debugPrint('[ProfileService] Usando perfil preservado em memória');
+            _profile = preservedProfile;
+          } else {
+            debugPrint('[ProfileService] Criando novo perfil com parâmetros');
+            _profile = UserProfile(
+              id: userId,
+              email: email ?? '',
+              displayName: displayName,
+              photoUrl: photoUrl,
+              role: UserRole.student,
+              martialArtType: null,
+            );
+          }
+          
+          // Tenta salvar no Supabase se ainda não foi salvo
+          if (_profile.email.isNotEmpty) {
+            debugPrint('[ProfileService] Salvando perfil no Supabase');
+            await _profileRepository.saveProfile(_profile);
+          }
         }
+
+        debugPrint('[ProfileService] Perfil final - displayName: ${_profile.displayName}, martialArtType: ${_profile.martialArtType}');
         _isLoading = false;
         _error = null;
       case Failure<UserProfile>(:final message):
-        _error = message;
+        debugPrint('[ProfileService] Erro ao buscar perfil: $message');
+        // Se falhar ao buscar do Supabase, mantém o perfil em memória se existir
+        if (preservedProfile != null) {
+          debugPrint('[ProfileService] Mantendo perfil preservado após erro');
+          _profile = preservedProfile;
+          _error = null;
+        } else if (_profile.id.isEmpty || _profile.email.isEmpty) {
+          _error = message;
+        }
         _isLoading = false;
     }
 

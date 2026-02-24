@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
-import 'package:self_dojo_mobile/domain/models/user_profile.dart';
 
 /// Header do perfil na Home
 class ProfileHeader extends StatelessWidget {
   const ProfileHeader({
     super.key,
-    required this.profile,
+    required this.displayName,
+    required this.photoUrl,
+    required this.martialArtName,
+    required this.martialArtShortName,
+    required this.martialArtPrimaryColor,
+    required this.academyName,
     required this.onLogout,
     required this.onEditProfile,
   });
 
-  final UserProfile profile;
+  
+  final String? displayName;
+  final String? photoUrl;
+  final String? martialArtName;
+  final String? martialArtShortName;
+  final Color martialArtPrimaryColor;
+  final String? academyName;
   final VoidCallback onLogout;
   final VoidCallback onEditProfile;
 
@@ -31,12 +41,12 @@ class ProfileHeader extends StatelessWidget {
                   height: 70,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: profile.photoUrl == null
+                    gradient: photoUrl == null
                         ? AppColors.primaryGradient
                         : null,
-                    image: profile.photoUrl != null && profile.photoUrl!.isNotEmpty
+                    image: photoUrl != null && photoUrl!.isNotEmpty
                         ? DecorationImage(
-                            image: NetworkImage(profile.photoUrl!),
+                            image: NetworkImage(photoUrl!),
                             fit: BoxFit.cover,
                             onError: (exception, stackTrace) {
                               // Se a imagem falhar ao carregar, mostra as iniciais
@@ -52,11 +62,11 @@ class ProfileHeader extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: profile.photoUrl == null || profile.photoUrl!.isEmpty
+                  child: photoUrl == null || photoUrl!.isEmpty
                       ? Center(
                           child: Text(
                             _getInitials(
-                                profile.displayName ?? profile.email),
+                                displayName ?? ''),
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -99,7 +109,7 @@ class ProfileHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  profile.displayName ?? 'Usuário',
+                  displayName ?? '',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -114,18 +124,18 @@ class ProfileHeader extends StatelessWidget {
                     Icon(
                       Icons.sports_martial_arts,
                       size: 16,
-                      color: profile.martialArt.primaryColor,
+                      color: martialArtPrimaryColor,
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      profile.martialArt.shortName,
+                      martialArtShortName ?? '',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.textSecondaryDark.withValues(alpha: 0.8),
                       ),
                     ),
-                    if (profile.academyName != null &&
-                        profile.academyName!.isNotEmpty) ...[
+                    if (academyName != null &&
+                        academyName!.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       Icon(
                         Icons.circle,
@@ -135,7 +145,7 @@ class ProfileHeader extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          profile.academyName!,
+                          academyName!,
                           style: TextStyle(
                             fontSize: 14,
                             color:

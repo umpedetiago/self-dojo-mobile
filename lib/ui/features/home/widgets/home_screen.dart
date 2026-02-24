@@ -90,136 +90,146 @@ class _HomeContentState extends State<_HomeContent> {
     final nextBelt = profile.nextBelt;
 
     return Scaffold(
-      body: Container(
-        decoration: _backgroundDecoration,
-        child: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: () => profileService.refresh(),
-            color: AppColors.primary,
-            backgroundColor: AppColors.surfaceDark,
-            child: CustomScrollView(
-              slivers: [
-                // Header com perfil
-                SliverToBoxAdapter(
-                  child: ProfileHeader(
-                    profile: profile,
-                    onLogout: () => _showLogoutDialog(context, authViewModel),
-                    onEditProfile: () => context.push('/profile/edit'),
-                  ),
-                ),
-
-              // Faixa atual (usa modalidade matriculada se disponível, senão legado)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                  child: BeltDisplay(
-                    martialArt: martialArt,
-                    belt: currentBelt,
-                    degree: profile.enrolledModalities.isNotEmpty
-                        ? profile.enrolledModalities.first.graduation.degree
-                        : profile.graduation?.degree ?? 0,
-                    graduation: profile.enrolledModalities.isNotEmpty
-                        ? profile.enrolledModalities.first.graduation
-                        : profile.graduation,
-                  ),
-                ),
-              ),
-
-              // Cards de estatísticas
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.4,
-                  ),
-                  delegate: SliverChildListDelegate([
-                    StatsCard(
-                      icon: Icons.fitness_center,
-                      label: 'Total de Aulas',
-                      value: '${profile.totalClassesAll}',
-                      color: AppColors.primary,
-                      onTap: (profile.academyId != null && profile.academyId!.isNotEmpty && !profile.isOwner)
-                          ? () => context.push('/checkin/history')
-                          : null,
-                    ),
-                    StatsCard(
-                      icon: Icons.schedule,
-                      label: 'Tempo de Treino',
-                      value: _formatTrainingTime(profile.trainingTime),
-                      color: AppColors.secondary,
-                    ),
-                    StatsCard(
-                      icon: Icons.emoji_events,
-                      label: 'Competições',
-                      value: '${profile.competitions.length}',
-                      color: AppColors.accent,
-                    ),
-                    if (nextBelt != null)
-                      StatsCard(
-                        icon: Icons.trending_up,
-                        label: 'Próxima Faixa',
-                        value: '${profile.classesUntilPromotion} aulas',
-                        color: _getBeltColor(nextBelt),
-                      )
-                    else
-                      StatsCard(
-                        icon: Icons.star,
-                        label: 'Graduação',
-                        value: 'Máxima',
-                        color: Colors.amber,
+      body: ListenableBuilder(
+        listenable: profileService,
+        builder: (context, asyncSnapshot) {
+          return Container(
+            decoration: _backgroundDecoration,
+            child: SafeArea(
+              child: RefreshIndicator(
+                onRefresh: () => profileService.refresh(),
+                color: AppColors.primary,
+                backgroundColor: AppColors.surfaceDark,
+                child: CustomScrollView(
+                  slivers: [
+                    // Header com perfil
+                    SliverToBoxAdapter(
+                      child: ProfileHeader(
+                        displayName: profile.displayName,
+                        photoUrl: profile.photoUrl,
+                        martialArtName: martialArt.name,
+                        martialArtShortName: martialArt.shortName,
+                        martialArtPrimaryColor: martialArt.primaryColor,
+                        academyName: profile.academyName,
+                        onLogout: () => _showLogoutDialog(context, authViewModel),
+                        onEditProfile: () => context.push('/profile/edit'),
                       ),
-                  ]),
-                ),
-              ),
-
-              // Ações rápidas
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: QuickActionsWidget(profile: profile),
-                ),
-              ),
-
-              // Todas as modalidades matriculadas (se tiver mais de uma)
-              if (profile.enrolledModalities.length > 1)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: EnrolledModalitiesWidget(profile: profile),
-                  ),
-                ),
-
-              // Informações adicionais
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: _buildInfoSection(profile),
-                ),
-              ),
-
-              // Histórico de graduações (usa modalidade matriculada se disponível, senão legado)
-              if (_hasGraduationHistory(profile))
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: GraduationHistoryWidget(
-                      profile: profile,
-                      martialArt: martialArt,
+                    ),
+          
+                  // Faixa atual (usa modalidade matriculada se disponível, senão legado)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                      child: BeltDisplay(
+                        martialArt: martialArt,
+                        belt: currentBelt,
+                        degree: profile.enrolledModalities.isNotEmpty
+                            ? profile.enrolledModalities.first.graduation.degree
+                            : profile.graduation?.degree ?? 0,
+                        graduation: profile.enrolledModalities.isNotEmpty
+                            ? profile.enrolledModalities.first.graduation
+                            : profile.graduation,
+                      ),
                     ),
                   ),
-                ),
-
-              // Espaço extra no final
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 32),
+          
+                  // Cards de estatísticas
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    sliver: SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 1.4,
+                      ),
+                      delegate: SliverChildListDelegate([
+                        StatsCard(
+                          icon: Icons.fitness_center,
+                          label: 'Total de Aulas',
+                          value: '${profile.totalClassesAll}',
+                          color: AppColors.primary,
+                          onTap: (profile.academyId != null && profile.academyId!.isNotEmpty && !profile.isOwner)
+                              ? () => context.push('/checkin/history')
+                              : null,
+                        ),
+                        StatsCard(
+                          icon: Icons.schedule,
+                          label: 'Tempo de Treino',
+                          value: _formatTrainingTime(profile.trainingTime),
+                          color: AppColors.secondary,
+                        ),
+                        StatsCard(
+                          icon: Icons.emoji_events,
+                          label: 'Competições',
+                          value: '${profile.competitions.length}',
+                          color: AppColors.accent,
+                        ),
+                        if (nextBelt != null)
+                          StatsCard(
+                            icon: Icons.trending_up,
+                            label: 'Próxima Faixa',
+                            value: '${profile.classesUntilPromotion} aulas',
+                            color: _getBeltColor(nextBelt),
+                          )
+                        else
+                          StatsCard(
+                            icon: Icons.star,
+                            label: 'Graduação',
+                            value: 'Máxima',
+                            color: Colors.amber,
+                          ),
+                      ]),
+                    ),
+                  ),
+          
+                  // Ações rápidas
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: QuickActionsWidget(profile: profile),
+                    ),
+                  ),
+          
+                  // Todas as modalidades matriculadas (se tiver mais de uma)
+                  if (profile.enrolledModalities.length > 1)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        child: EnrolledModalitiesWidget(profile: profile),
+                      ),
+                    ),
+          
+                  // Informações adicionais
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: _buildInfoSection(profile),
+                    ),
+                  ),
+          
+                  // Histórico de graduações (usa modalidade matriculada se disponível, senão legado)
+                  if (_hasGraduationHistory(profile))
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        child: GraduationHistoryWidget(
+                          profile: profile,
+                          martialArt: martialArt,
+                        ),
+                      ),
+                    ),
+          
+                  // Espaço extra no final
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: 32),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-        ),
+            ),
+            ),
+          );
+        }
       ),
     );
   }

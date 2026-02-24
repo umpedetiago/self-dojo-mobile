@@ -10,13 +10,15 @@ import 'package:self_dojo_mobile/domain/models/user.dart';
 class RegisterViewModel extends ChangeNotifier {
   RegisterViewModel({required AuthRepository authRepository})
       : _authRepository = authRepository {
-    register = Command0(_register);
+    createFirebaseAccount = Command0(_createFirebaseAccount);
+    createSupabaseProfile = Command1(_createSupabaseProfile);
   }
 
   final AuthRepository _authRepository;
 
-  // Command
-  late final Command0<AppUser> register;
+  // Commands separados para as duas etapas
+  late final Command0<AppUser> createFirebaseAccount;
+  late final Command1<void, AppUser> createSupabaseProfile;
 
   // Estado do formulário
   String _name = '';
@@ -28,14 +30,8 @@ class RegisterViewModel extends ChangeNotifier {
   String _password = '';
   String get password => _password;
 
-  String _confirmPassword = '';
-  String get confirmPassword => _confirmPassword;
-
   bool _obscurePassword = true;
   bool get obscurePassword => _obscurePassword;
-
-  bool _obscureConfirmPassword = true;
-  bool get obscureConfirmPassword => _obscureConfirmPassword;
 
   bool _acceptedTerms = false;
   bool get acceptedTerms => _acceptedTerms;
@@ -44,11 +40,9 @@ class RegisterViewModel extends ChangeNotifier {
   UserRole _selectedRole = UserRole.student;
   UserRole get selectedRole => _selectedRole;
 
-  /// Roles disponíveis para seleção no cadastro
+  /// Roles disponíveis para seleção no cadastro (apenas Student e Owner)
   static const List<UserRole> availableRoles = [
     UserRole.student,
-    UserRole.instructor,
-    UserRole.teacher,
     UserRole.owner,
   ];
 
@@ -71,9 +65,6 @@ class RegisterViewModel extends ChangeNotifier {
 
   bool get isPasswordValid => _password.length >= 6;
 
-  bool get isConfirmPasswordValid =>
-      _confirmPassword.isNotEmpty && _confirmPassword == _password;
-
   /// Verifica se a modalidade é obrigatória (não é para owners que criam academia)
   bool get isMartialArtRequired => _selectedRole != UserRole.owner;
 
@@ -84,7 +75,6 @@ class RegisterViewModel extends ChangeNotifier {
       isNameValid &&
       isEmailValid &&
       isPasswordValid &&
-      isConfirmPasswordValid &&
       isMartialArtValid &&
       _acceptedTerms;
 
@@ -94,11 +84,6 @@ class RegisterViewModel extends ChangeNotifier {
     return null;
   }
 
-  String? get confirmPasswordError {
-    if (_confirmPassword.isEmpty) return null;
-    if (_confirmPassword != _password) return 'As senhas não coincidem';
-    return null;
-  }
 
   // Actions
   void setName(String value) {
@@ -119,19 +104,8 @@ class RegisterViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setConfirmPassword(String value) {
-    _confirmPassword = value;
-    _errorMessage = null;
-    notifyListeners();
-  }
-
   void togglePasswordVisibility() {
     _obscurePassword = !_obscurePassword;
-    notifyListeners();
-  }
-
-  void toggleConfirmPasswordVisibility() {
-    _obscureConfirmPassword = !_obscureConfirmPassword;
     notifyListeners();
   }
 
@@ -159,8 +133,8 @@ class RegisterViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Registro
-  Future<Result<AppUser>> _register() async {
+  // ETAPA 1: Criar conta no Firebase (autenticação)
+  Future<Result<AppUser>> _createFirebaseAccount() async {
     if (!isFormValid) {
       final message = !_acceptedTerms
           ? 'Aceite os termos de uso para continuar'
@@ -173,8 +147,26 @@ class RegisterViewModel extends ChangeNotifier {
       email: _email,
       password: _password,
       displayName: _name.trim(),
+    );
+
+    result.fold(
+      onSuccess: (_) => _errorMessage = null,
+      onFailure: (failure) => _errorMessage = failure.message,
+    );
+
+    notifyListeners();
+    return result;
+  }
+
+  // ETAPA 2: Criar perfil no Supabase (banco de dados)
+  Future<Result<void>> _createSupabaseProfile(AppUser user) async {
+    final result = await _authRepository.createProfile(
+      userId: user.id,
+      email: user.email,
+      displayName: user.displayName ?? _name.trim(),
       role: _selectedRole,
-      martialArtType: _selectedMartialArt,
+      martialArtType: _selectedMartialArt ??
+          (_selectedRole == UserRole.owner ? null : MartialArtType.jiuJitsu),
     );
 
     result.fold(
