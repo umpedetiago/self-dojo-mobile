@@ -17,6 +17,7 @@ import 'package:self_dojo_mobile/data/repositories/students_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/students_repository_hybrid.dart';
 import 'package:self_dojo_mobile/data/repositories/students_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_search_repository.dart';
+import 'package:self_dojo_mobile/data/repositories/academy_search_repository_hybrid.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_search_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/repositories/class_schedule_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/class_schedule_repository_hybrid.dart';
@@ -128,8 +129,11 @@ class SelfDojoApp extends StatelessWidget {
           ),
         ),
         Provider<AcademySearchRepository>(
-          create: (ctx) => AcademySearchRepositorySupabase(
-            supabaseService: ctx.read<SupabaseService>(),
+          create: (ctx) => AcademySearchRepositoryHybrid(
+            backendApiClient: ctx.read<BackendApiClient>(),
+            fallbackRepository: AcademySearchRepositorySupabase(
+              supabaseService: ctx.read<SupabaseService>(),
+            ),
           ),
         ),
         Provider<ClassScheduleRepository>(
