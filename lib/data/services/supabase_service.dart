@@ -15,12 +15,27 @@ class SupabaseService {
 
   /// Busca usuário pelo Firebase UID
   Future<Map<String, dynamic>?> getUserByFirebaseUid(String firebaseUid) async {
-    final response = await _client
+    final normalized = firebaseUid.trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+
+    final byFirebaseUid = await _client
         .from('users')
         .select()
-        .eq('firebase_uid', firebaseUid)
+        .eq('firebase_uid', normalized)
         .maybeSingle();
-    return response;
+    if (byFirebaseUid != null) {
+      return byFirebaseUid;
+    }
+
+    // Durante a migração, também aceitamos o ID interno do usuário.
+    final byUserId = await _client
+        .from('users')
+        .select()
+        .eq('id', normalized)
+        .maybeSingle();
+    return byUserId;
   }
 
   /// Cria ou atualiza usuário

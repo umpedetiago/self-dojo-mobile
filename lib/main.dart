@@ -1,6 +1,6 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:self_dojo_mobile/core/config/app_router.dart';
@@ -9,22 +9,32 @@ import 'package:self_dojo_mobile/core/theme/app_theme.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/repositories/auth_repository.dart';
+import 'package:self_dojo_mobile/data/repositories/auth_repository_backend.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
+import 'package:self_dojo_mobile/data/repositories/profile_repository_hybrid.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/repositories/students_repository.dart';
+import 'package:self_dojo_mobile/data/repositories/students_repository_hybrid.dart';
 import 'package:self_dojo_mobile/data/repositories/students_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_search_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_search_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/repositories/class_schedule_repository.dart';
+import 'package:self_dojo_mobile/data/repositories/class_schedule_repository_hybrid.dart';
 import 'package:self_dojo_mobile/data/repositories/class_schedule_repository_supabase.dart';
-import 'package:self_dojo_mobile/data/services/firebase_auth_service.dart';
+import 'package:self_dojo_mobile/data/services/backend_api_client.dart';
+import 'package:self_dojo_mobile/data/services/auth_session_store.dart';
+import 'package:self_dojo_mobile/data/services/backend_auth_service.dart';
 import 'package:self_dojo_mobile/data/services/profile_service.dart';
 import 'package:self_dojo_mobile/data/services/supabase_service.dart';
-import 'package:self_dojo_mobile/firebase_options.dart';
 import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Carrega variáveis locais de ambiente (opcional).
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {}
 
   // Configura orientação e barra de status
   await SystemChrome.setPreferredOrientations([
@@ -41,45 +51,66 @@ void main() async {
     ),
   );
 
-  // Inicializa Firebase (apenas para Auth)
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
   // Inicializa Supabase (para Database e Storage)
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
   );
 
-  runApp(const SelfDojoApp());
+  final sessionStore = AuthSessionStore();
+  await sessionStore.initialize();
+
+  runApp(SelfDojoApp(sessionStore: sessionStore));
 }
 
 /// Aplicação principal
 class SelfDojoApp extends StatelessWidget {
-  const SelfDojoApp({super.key});
+  const SelfDojoApp({
+    super.key,
+    required this.sessionStore,
+  });
+
+  final AuthSessionStore sessionStore;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         // Services
-        Provider<FirebaseAuthService>(
-          create: (_) => FirebaseAuthService(),
+        Provider<AuthSessionStore>.value(
+          value: sessionStore,
         ),
         Provider<SupabaseService>(
           create: (_) => SupabaseService(),
         ),
+        Provider<BackendApiClient>(
+          create: (ctx) => BackendApiClient(
+            tokenProvider: () => ctx.read<AuthSessionStore>().token,
+            onUnauthorized: () => ctx.read<AuthSessionStore>().clear(),
+          ),
+        ),
+        Provider<BackendAuthService>(
+          create: (ctx) => BackendAuthService(
+            apiClient: ctx.read<BackendApiClient>(),
+          ),
+        ),
 
         // Repositories
-        Provider<ProfileRepository>(
+        Provider<ProfileRepositorySupabase>(
           create: (ctx) => ProfileRepositorySupabase(
             supabaseService: ctx.read<SupabaseService>(),
           ),
         ),
+        Provider<ProfileRepository>(
+          create: (ctx) => ProfileRepositoryHybrid(
+            backendApiClient: ctx.read<BackendApiClient>(),
+            supabaseRepository: ctx.read<ProfileRepositorySupabase>(),
+          ),
+        ),
         Provider<AuthRepository>(
-          create: (ctx) => AuthRepositoryImpl(
-            authService: ctx.read<FirebaseAuthService>(),
+          create: (ctx) => AuthRepositoryBackend(
+            authService: ctx.read<BackendAuthService>(),
+            sessionStore: ctx.read<AuthSessionStore>(),
             profileRepository: ctx.read<ProfileRepository>(),
           ),
         ),
@@ -89,8 +120,11 @@ class SelfDojoApp extends StatelessWidget {
           ),
         ),
         Provider<StudentsRepository>(
-          create: (ctx) => StudentsRepositorySupabase(
-            supabaseService: ctx.read<SupabaseService>(),
+          create: (ctx) => StudentsRepositoryHybrid(
+            backendApiClient: ctx.read<BackendApiClient>(),
+            fallbackRepository: StudentsRepositorySupabase(
+              supabaseService: ctx.read<SupabaseService>(),
+            ),
           ),
         ),
         Provider<AcademySearchRepository>(
@@ -99,7 +133,10 @@ class SelfDojoApp extends StatelessWidget {
           ),
         ),
         Provider<ClassScheduleRepository>(
-          create: (ctx) => ClassScheduleRepositorySupabase(),
+          create: (ctx) => ClassScheduleRepositoryHybrid(
+            backendApiClient: ctx.read<BackendApiClient>(),
+            fallbackRepository: ClassScheduleRepositorySupabase(),
+          ),
         ),
 
         // Services Globais

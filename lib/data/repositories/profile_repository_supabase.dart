@@ -251,7 +251,7 @@ class ProfileRepositorySupabase implements ProfileRepository {
     }
 
     return UserProfile(
-      id: data['firebase_uid'] as String,
+      id: data['firebase_uid'] as String? ?? data['id'] as String? ?? '',
       email: data['email'] as String? ?? '',
       displayName: data['display_name'] as String?,
       photoUrl: data['photo_url'] as String?,

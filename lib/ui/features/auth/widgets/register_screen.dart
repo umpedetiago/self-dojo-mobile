@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -622,7 +621,7 @@ class _RegisterContentState extends State<_RegisterContent> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Conta criada! Verifique seu email para confirmar.',
+          'Conta criada com sucesso!',
         ),
         backgroundColor: AppColors.success,
       ),

@@ -41,6 +41,11 @@ class AuthViewModel extends ChangeNotifier {
       _onAuthStateChanged,
       onError: (_) => _setUnauthenticated(),
     );
+
+    _authRepository.restoreSession().catchError((_) {
+      _setUnauthenticated();
+      notifyListeners();
+    });
   }
 
   void _onAuthStateChanged(AppUser? user) {
