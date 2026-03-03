@@ -4,10 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
-import 'package:self_dojo_mobile/data/services/supabase_service.dart';
 import 'package:self_dojo_mobile/domain/models/academy/academy.dart';
 import 'package:self_dojo_mobile/domain/models/academy/academy_modality.dart';
 import 'package:self_dojo_mobile/ui/features/academy/view_models/academy_viewmodel.dart';
+import 'package:self_dojo_mobile/ui/features/academy/view_models/students_viewmodel.dart';
 import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
 
 /// Tela para visualizar a equipe da academia (professores e instrutores)
@@ -62,22 +62,29 @@ class _AcademyTeamContentState extends State<_AcademyTeamContent> {
   }
 
   Future<List<_TeamMember>> _loadTeam(Academy academy) async {
-    final supabase = context.read<SupabaseService>();
     final Map<String, _TeamMember> byUser = {};
 
     for (final AcademyModality modality in academy.modalities) {
-      final records = await supabase.getModalityTeachers(modality.id);
+      // Usa dados já carregados da academia via AcademyRepository/Backend API.
+      // Cada modalidade traz a lista de `teacherIds`; detalhes do usuário
+      // serão buscados a partir dos alunos da academia.
+      final teacherIds = modality.teacherIds.toSet();
+      if (teacherIds.isEmpty) continue;
 
-      for (final rec in records) {
-        final userId = rec['user_id'] as String?;
-        if (userId == null) continue;
+      // Para compor os dados da equipe, usamos os alunos carregados via StudentsRepository
+      // através do StudentsViewModel, que deve estar disponível acima na árvore.
+      final studentsViewModel = context.read<StudentsViewModel>();
+      final students = studentsViewModel.students;
 
-        final role = (rec['role'] as String?)?.toLowerCase() ?? 'teacher';
-        final userData = rec['users'] as Map<String, dynamic>? ?? {};
-        final name =
-            (userData['display_name'] as String?) ?? (userData['email'] as String?) ?? 'Sem nome';
-        final email = userData['email'] as String? ?? '';
-        final photoUrl = userData['photo_url'] as String?;
+      for (final student in students) {
+        final userId = student.oderId;
+        if (userId.isEmpty || !teacherIds.contains(userId)) continue;
+
+        // Papel básico: teacher. No futuro podemos enriquecer com mais roles.
+        const role = 'teacher';
+        final name = student.displayName ?? student.email;
+        final email = student.email;
+        final photoUrl = student.photoUrl;
 
         final entry = byUser.putIfAbsent(
           userId,

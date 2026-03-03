@@ -50,7 +50,7 @@ abstract class StudentsRepository {
   });
 
   /// Remove matrícula de modalidade
-  Future<Result<void>> unenrollFromModality(String studentModalityId);
+  
 }
 
 /// Registro de check-in

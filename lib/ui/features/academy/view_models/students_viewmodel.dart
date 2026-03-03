@@ -167,15 +167,15 @@ class StudentsViewModel extends ChangeNotifier {
   }
 
   /// Remove matrícula de modalidade
-  Future<Result<void>> unenrollFromModality(String studentModalityId) async {
-    final result = await _studentsRepository.unenrollFromModality(studentModalityId);
+  // Future<Result<void>> unenrollFromModality(String studentModalityId) async {
+  //   final result = await _studentsRepository.unenrollFromModality(studentModalityId);
 
-    if (result.isSuccess) {
-      await _loadStudents();
-    }
+  //   if (result.isSuccess) {
+  //     await _loadStudents();
+  //   }
 
-    return result;
-  }
+  //   return result;
+  // }
 }
 
 /// Parâmetros para matrícula em modalidade

@@ -2,7 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:self_dojo_mobile/core/utils/result.dart';
 import 'package:self_dojo_mobile/data/repositories/class_schedule_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/students_repository.dart';
-import 'package:self_dojo_mobile/data/services/supabase_service.dart';
+import 'package:self_dojo_mobile/data/services/profile_service.dart';
+import 'package:self_dojo_mobile/domain/models/academy/academy_student.dart';
 import 'package:self_dojo_mobile/domain/models/academy/class_schedule.dart';
 
 /// ViewModel para gerenciar check-in do aluno
@@ -10,16 +11,16 @@ class CheckInViewModel extends ChangeNotifier {
   CheckInViewModel({
     required ClassScheduleRepository classScheduleRepository,
     required StudentsRepository studentsRepository,
-    required SupabaseService supabaseService,
+    required ProfileService profileService,
     required String userId,
   })  : _classScheduleRepository = classScheduleRepository,
         _studentsRepository = studentsRepository,
-        _supabaseService = supabaseService,
+        _profileService = profileService,
         _userId = userId;
 
   final ClassScheduleRepository _classScheduleRepository;
   final StudentsRepository _studentsRepository;
-  final SupabaseService _supabaseService;
+  final ProfileService _profileService;
   final String _userId;
 
   List<ClassSchedule> _availableSchedules = [];
@@ -42,65 +43,75 @@ class CheckInViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Primeiro busca o usuário pelo Firebase UID para obter o UUID do banco
-      final user = await _supabaseService.getUserByFirebaseUid(_userId);
-      if (user == null) {
-        _error = 'Usuário não encontrado';
+      debugPrint('[CheckInViewModel] Carregando dados de check-in para usuário $_userId');
+
+      final profile = _profileService.profile;
+      if (!profile.hasAcademy || !profile.isApprovedInAcademy) {
+        _error = 'Você precisa estar aprovado em uma academia para fazer check-in.';
+        _availableSchedules = [];
+        _studentModalityMap = {};
+        _academyId = null;
+        _memberId = null;
         _isLoading = false;
         notifyListeners();
         return;
       }
 
-      final dbUserId = user['id'] as String;
+      final academyId = profile.academyId!;
+      _academyId = academyId;
 
-      // Busca o membro do aluno usando o UUID do banco
-      final member = await _supabaseService.getMemberByUserId(dbUserId);
-      if (member == null) {
-        _error = 'Você não está matriculado em nenhuma academia';
-        _isLoading = false;
-        notifyListeners();
-        return;
-      }
+      // Busca os dados de membership e modalidades do aluno na academia.
+      final studentsResult = await _studentsRepository.getAcademyStudents(academyId);
 
-      _memberId = member['id'] as String;
-      _academyId = member['academy_id'] as String;
-
-      // Busca modalidades do aluno e cria mapa
-      final modalities = await _supabaseService.getStudentModalities(_memberId!);
-      _studentModalityMap = {};
-      for (final modality in modalities) {
-        final modalityId = modality['modality_id'] as String?;
-        final studentModalityId = modality['id'] as String;
-        if (modalityId != null) {
-          _studentModalityMap[modalityId] = studentModalityId;
-        }
-      }
-
-      // Busca horários disponíveis para check-in
-      final schedulesResult = await _classScheduleRepository
-          .getAvailableSchedulesForCheckIn(_academyId!);
-
-      schedulesResult.fold(
-        onSuccess: (schedules) {
-          // Filtra apenas horários das modalidades que o aluno está matriculado
-          // ou horários sem modalidade específica (para todas)
-          _availableSchedules = schedules.where((schedule) {
-            if (schedule.modalityId == null) {
-              // Horário para todas as modalidades
-              return true;
+      AcademyStudent? me;
+      studentsResult.fold(
+        onSuccess: (students) {
+          for (final s in students) {
+            if (s.oderId == _userId) {
+              me = s;
+              break;
             }
-            // Verifica se o aluno está matriculado nesta modalidade
-            return _studentModalityMap.containsKey(schedule.modalityId);
-          }).toList();
-          _isLoading = false;
-          notifyListeners();
+          }
         },
         onFailure: (failure) {
           _error = failure.message;
-          _isLoading = false;
-          notifyListeners();
         },
       );
+
+      if (me == null) {
+        _error ??= 'Seu cadastro na academia ainda não foi encontrado ou aprovado.';
+        _availableSchedules = [];
+        _studentModalityMap = {};
+        _memberId = null;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      _memberId = me!.memberId;
+
+      // Monta o mapa modalityId -> studentModalityId para validação de matrícula.
+      _studentModalityMap = {
+        for (final m in me!.modalities)
+          if (m.modalityId.isNotEmpty) m.modalityId: m.id,
+      };
+
+      // Carrega horários disponíveis para check-in hoje.
+      final schedulesResult =
+          await _classScheduleRepository.getAvailableSchedulesForCheckIn(academyId);
+
+      schedulesResult.fold(
+        onSuccess: (schedules) {
+          _availableSchedules = schedules;
+        },
+        onFailure: (failure) {
+          _error = failure.message;
+          _availableSchedules = [];
+        },
+      );
+
+      _isLoading = false;
+      notifyListeners();
     } catch (e) {
       _error = 'Erro ao carregar horários: $e';
       _isLoading = false;
@@ -161,34 +172,25 @@ class CheckInViewModel extends ChangeNotifier {
 
   /// Verifica se o aluno já fez check-in hoje em algum horário
   Future<bool> hasCheckedInToday() async {
-    if (_memberId == null) return false;
-
-    try {
-      final modalities = await _supabaseService.getStudentModalities(_memberId!);
-      final today = DateTime.now();
-      final todayStart = DateTime(today.year, today.month, today.day);
-
-      for (final modality in modalities) {
-        final studentModalityId = modality['id'] as String;
-        final checkIns = await _supabaseService.getStudentCheckIns(
-          studentModalityId,
-          startDate: todayStart,
-        );
-
-        if (checkIns.isNotEmpty) {
-          // Verifica se há check-in de hoje
-          for (final checkIn in checkIns) {
-            final checkedInAt = DateTime.parse(checkIn['checked_in_at'] as String);
-            if (checkedInAt.isAfter(todayStart) || checkedInAt.isAtSameMomentAs(todayStart)) {
-              return true;
-            }
-          }
-        }
-      }
-      return false;
-    } catch (_) {
+    if (_studentModalityMap.isEmpty) {
       return false;
     }
+
+    final studentModalityId = _studentModalityMap.values.first;
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final result = await _studentsRepository.getCheckInHistory(
+      studentModalityId: studentModalityId,
+      startDate: startOfDay,
+      endDate: endOfDay,
+    );
+
+    return result.fold(
+      onSuccess: (items) => items.isNotEmpty,
+      onFailure: (_) => false,
+    );
   }
 }
 

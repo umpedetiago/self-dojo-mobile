@@ -1,6 +1,7 @@
 import 'package:self_dojo_mobile/core/utils/result.dart';
-import 'package:self_dojo_mobile/data/repositories/class_schedule_repository_supabase.dart';
+import 'package:self_dojo_mobile/data/services/backend_api_client.dart';
 import 'package:self_dojo_mobile/domain/models/academy/class_schedule.dart';
+import 'package:self_dojo_mobile/data/repositories/class_schedule_repository_hybrid.dart';
 
 /// Repository abstrato para gerenciamento de horários de aulas
 abstract class ClassScheduleRepository {
@@ -35,6 +36,11 @@ abstract class ClassScheduleRepository {
 
 /// Factory para criar o repository correto
 ClassScheduleRepository createClassScheduleRepository() {
-  return ClassScheduleRepositorySupabase();
+  // No app atual usamos sempre o repositório baseado na Backend API.
+  // O BackendApiClient será injetado via Provider em main.dart, então
+  // esta factory não é usada no fluxo principal, mas mantemos a assinatura.
+  return ClassScheduleRepositoryHybrid(
+    backendApiClient: BackendApiClient(),
+  );
 }
 

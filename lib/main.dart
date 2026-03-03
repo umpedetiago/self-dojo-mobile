@@ -2,31 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:self_dojo_mobile/core/config/app_router.dart';
-import 'package:self_dojo_mobile/core/config/supabase_config.dart';
 import 'package:self_dojo_mobile/core/theme/app_theme.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_repository.dart';
-import 'package:self_dojo_mobile/data/repositories/academy_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/repositories/auth_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/auth_repository_backend.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository_hybrid.dart';
-import 'package:self_dojo_mobile/data/repositories/profile_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/repositories/students_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/students_repository_hybrid.dart';
-import 'package:self_dojo_mobile/data/repositories/students_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_search_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_search_repository_hybrid.dart';
-import 'package:self_dojo_mobile/data/repositories/academy_search_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/repositories/class_schedule_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/class_schedule_repository_hybrid.dart';
-import 'package:self_dojo_mobile/data/repositories/class_schedule_repository_supabase.dart';
+import 'package:self_dojo_mobile/data/repositories/academy_repository_hybrid.dart';
 import 'package:self_dojo_mobile/data/services/backend_api_client.dart';
 import 'package:self_dojo_mobile/data/services/auth_session_store.dart';
 import 'package:self_dojo_mobile/data/services/backend_auth_service.dart';
 import 'package:self_dojo_mobile/data/services/profile_service.dart';
-import 'package:self_dojo_mobile/data/services/supabase_service.dart';
 import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
 
 void main() async {
@@ -53,11 +46,6 @@ void main() async {
   );
 
   // Inicializa Supabase (para Database e Storage)
-  await Supabase.initialize(
-    url: SupabaseConfig.url,
-    anonKey: SupabaseConfig.anonKey,
-  );
-
   final sessionStore = AuthSessionStore();
   await sessionStore.initialize();
 
@@ -81,9 +69,6 @@ class SelfDojoApp extends StatelessWidget {
         Provider<AuthSessionStore>.value(
           value: sessionStore,
         ),
-        Provider<SupabaseService>(
-          create: (_) => SupabaseService(),
-        ),
         Provider<BackendApiClient>(
           create: (ctx) => BackendApiClient(
             tokenProvider: () => ctx.read<AuthSessionStore>().token,
@@ -97,15 +82,9 @@ class SelfDojoApp extends StatelessWidget {
         ),
 
         // Repositories
-        Provider<ProfileRepositorySupabase>(
-          create: (ctx) => ProfileRepositorySupabase(
-            supabaseService: ctx.read<SupabaseService>(),
-          ),
-        ),
         Provider<ProfileRepository>(
           create: (ctx) => ProfileRepositoryHybrid(
             backendApiClient: ctx.read<BackendApiClient>(),
-            supabaseRepository: ctx.read<ProfileRepositorySupabase>(),
           ),
         ),
         Provider<AuthRepository>(
@@ -116,30 +95,23 @@ class SelfDojoApp extends StatelessWidget {
           ),
         ),
         Provider<AcademyRepository>(
-          create: (ctx) => AcademyRepositorySupabase(
-            supabaseService: ctx.read<SupabaseService>(),
+          create: (ctx) => AcademyRepositoryHybrid(
+            backendApiClient: ctx.read<BackendApiClient>(),
           ),
         ),
         Provider<StudentsRepository>(
           create: (ctx) => StudentsRepositoryHybrid(
             backendApiClient: ctx.read<BackendApiClient>(),
-            fallbackRepository: StudentsRepositorySupabase(
-              supabaseService: ctx.read<SupabaseService>(),
-            ),
           ),
         ),
         Provider<AcademySearchRepository>(
           create: (ctx) => AcademySearchRepositoryHybrid(
             backendApiClient: ctx.read<BackendApiClient>(),
-            fallbackRepository: AcademySearchRepositorySupabase(
-              supabaseService: ctx.read<SupabaseService>(),
-            ),
           ),
         ),
         Provider<ClassScheduleRepository>(
           create: (ctx) => ClassScheduleRepositoryHybrid(
             backendApiClient: ctx.read<BackendApiClient>(),
-            fallbackRepository: ClassScheduleRepositorySupabase(),
           ),
         ),
 

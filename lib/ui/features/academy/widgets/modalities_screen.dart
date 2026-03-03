@@ -4,11 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
 import 'package:self_dojo_mobile/data/repositories/academy_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
+import 'package:self_dojo_mobile/data/services/backend_api_client.dart';
 import 'package:self_dojo_mobile/domain/models/academy/academy_modality.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
 import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
 import 'package:self_dojo_mobile/ui/features/academy/view_models/academy_viewmodel.dart';
-import 'package:self_dojo_mobile/data/services/supabase_service.dart';
 
 /// Tela de gerenciamento de modalidades
 class ModalitiesScreen extends StatelessWidget {
@@ -78,28 +78,37 @@ class _ManageTeachersSheetState extends State<_ManageTeachersSheet> {
     });
 
     try {
-      final supabase = context.read<SupabaseService>();
-      final auth = context.read<AuthViewModel>();
+      // ID do owner vem direto da academia carregada no ViewModel (UUID do backend)
+      _ownerUserId = widget.academyViewModel.academy.ownerId;
 
-      // Owner (buscar user_id pelo firebase_uid)
-      final ownerUser =
-          await supabase.getUserByFirebaseUid(auth.user.id);
-      _ownerUserId = ownerUser?['id'] as String?;
+      final backendApiClient = context.read<BackendApiClient>();
 
-      // Membros da academia
-      final members =
-          await supabase.getAcademyMembers(widget.academyId, status: 'approved');
+      // Membros aprovados da academia (alunos) via Backend API
+      final membersResponse = await backendApiClient.get(
+        '/v1/academies/${widget.academyId}/students',
+      );
+      if (!membersResponse.isSuccess ||
+          membersResponse.data is! Map<String, dynamic>) {
+        throw 'Falha ao buscar alunos (${membersResponse.statusCode})';
+      }
+      final membersMap = membersResponse.data as Map<String, dynamic>;
+      final members = (membersMap['items'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
 
-      // Professores atuais da modalidade
-      final teachers =
-          await supabase.getModalityTeachers(widget.modality.id);
-
-      final currentTeacherIds = teachers
-          .where(
-            (t) => t['user_id'] is String,
-          )
-          .map<String>((t) => t['user_id'] as String)
-          .toSet();
+      // Professores atuais da modalidade via Backend API
+      final teachersResponse = await backendApiClient.get(
+        '/v1/academies/${widget.academyId}/modalities/${widget.modality.id}/teachers',
+      );
+      if (!teachersResponse.isSuccess ||
+          teachersResponse.data is! Map<String, dynamic>) {
+        throw 'Falha ao buscar professores (${teachersResponse.statusCode})';
+      }
+      final teachersMap = teachersResponse.data as Map<String, dynamic>;
+      final currentTeacherIds =
+          (teachersMap['teacher_ids'] as List<dynamic>? ?? [])
+              .map((t) => t.toString())
+              .toSet();
 
       // Mestre atual (se existir) – vindo da própria modalidade
       final masterId = widget.modality.masterId;
@@ -128,7 +137,7 @@ class _ManageTeachersSheetState extends State<_ManageTeachersSheet> {
     });
 
     try {
-      final supabase = context.read<SupabaseService>();
+      final backendApiClient = context.read<BackendApiClient>();
       final academyViewModel = widget.academyViewModel;
 
       final teacherIds = {
@@ -136,9 +145,18 @@ class _ManageTeachersSheetState extends State<_ManageTeachersSheet> {
         if (_includeOwner && _ownerUserId != null) _ownerUserId!,
       }.toList();
 
-      await supabase.setModalityTeachers(widget.modality.id, teacherIds);
+      // Atualiza professores da modalidade via Backend API
+      final response = await backendApiClient.put(
+        '/v1/academies/${widget.academyId}/modalities/${widget.modality.id}/teachers',
+        body: {
+          'teacher_ids': teacherIds,
+        },
+      );
+      if (!response.isSuccess) {
+        throw 'Erro ao salvar professores (${response.statusCode})';
+      }
 
-      // Atualiza mestre da modalidade (opcional)
+      // Atualiza mestre da modalidade (opcional) via AcademyViewModel/Repository
       await academyViewModel.setModalityMaster(
         widget.modality.martialArt.type,
         _masterUserId,

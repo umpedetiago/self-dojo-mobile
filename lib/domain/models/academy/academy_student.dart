@@ -100,6 +100,7 @@ class AcademyStudent extends Equatable {
 class StudentModalityInfo extends Equatable {
   const StudentModalityInfo({
     required this.id,
+    required this.modalityId,
     required this.type,
     required this.beltId,
     this.degree = 0,
@@ -113,6 +114,9 @@ class StudentModalityInfo extends Equatable {
 
   /// ID do student_modality
   final String id;
+
+  /// ID da modalidade da academia (academy_modalities.id)
+  final String modalityId;
 
   /// Tipo da arte marcial
   final MartialArtType type;
@@ -168,6 +172,7 @@ class StudentModalityInfo extends Equatable {
   /// Copia com alterações
   StudentModalityInfo copyWith({
     String? id,
+    String? modalityId,
     MartialArtType? type,
     String? beltId,
     int? degree,
@@ -180,6 +185,7 @@ class StudentModalityInfo extends Equatable {
   }) {
     return StudentModalityInfo(
       id: id ?? this.id,
+      modalityId: modalityId ?? this.modalityId,
       type: type ?? this.type,
       beltId: beltId ?? this.beltId,
       degree: degree ?? this.degree,
@@ -195,6 +201,7 @@ class StudentModalityInfo extends Equatable {
   @override
   List<Object?> get props => [
         id,
+        modalityId,
         type,
         beltId,
         degree,

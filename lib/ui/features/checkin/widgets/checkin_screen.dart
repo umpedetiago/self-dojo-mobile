@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
 import 'package:self_dojo_mobile/data/repositories/class_schedule_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/students_repository.dart';
-import 'package:self_dojo_mobile/data/services/supabase_service.dart';
+import 'package:self_dojo_mobile/data/services/profile_service.dart';
 import 'package:self_dojo_mobile/domain/models/academy/class_schedule.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart' as martial_arts;
 import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
@@ -29,7 +29,7 @@ class CheckInScreen extends StatelessWidget {
       create: (ctx) => CheckInViewModel(
         classScheduleRepository: ctx.read<ClassScheduleRepository>(),
         studentsRepository: ctx.read<StudentsRepository>(),
-        supabaseService: ctx.read<SupabaseService>(),
+        profileService: ctx.read<ProfileService>(),
         userId: userId,
       )..loadCheckInData(),
       child: const _CheckInContent(),

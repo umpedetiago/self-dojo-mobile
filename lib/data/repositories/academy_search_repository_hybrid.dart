@@ -8,12 +8,9 @@ import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
 class AcademySearchRepositoryHybrid implements AcademySearchRepository {
   AcademySearchRepositoryHybrid({
     required BackendApiClient backendApiClient,
-    required AcademySearchRepository fallbackRepository,
-  })  : _backendApiClient = backendApiClient,
-        _fallbackRepository = fallbackRepository;
+  })  : _backendApiClient = backendApiClient;
 
   final BackendApiClient _backendApiClient;
-  final AcademySearchRepository _fallbackRepository;
 
   bool get _canUseBackend => _backendApiClient.canCallProtectedApi;
 
@@ -24,11 +21,7 @@ class AcademySearchRepositoryHybrid implements AcademySearchRepository {
     MartialArtType? modalityType,
   }) async {
     if (!_canUseBackend) {
-      return _fallbackRepository.searchAcademies(
-        query: query,
-        city: city,
-        modalityType: modalityType,
-      );
+      return Result.failure(Failure(message: 'Backend API não disponível', code: 'backend_api_not_available'));
     }
 
     try {
@@ -42,11 +35,7 @@ class AcademySearchRepositoryHybrid implements AcademySearchRepository {
       );
 
       if (!response.isSuccess || response.data is! Map<String, dynamic>) {
-        return _fallbackRepository.searchAcademies(
-          query: query,
-          city: city,
-          modalityType: modalityType,
-        );
+        return Result.failure(Failure(message: 'Erro ao buscar academias', code: 'academies_not_found'));
       }
 
       final map = response.data as Map<String, dynamic>;
@@ -57,11 +46,7 @@ class AcademySearchRepositoryHybrid implements AcademySearchRepository {
 
       return Result.success(items);
     } catch (_) {
-      return _fallbackRepository.searchAcademies(
-        query: query,
-        city: city,
-        modalityType: modalityType,
-      );
+      return Result.failure(Failure(message: 'Erro ao buscar academias', code: 'academies_not_found'));
     }
   }
 
@@ -71,10 +56,7 @@ class AcademySearchRepositoryHybrid implements AcademySearchRepository {
     required String oderId,
   }) async {
     if (!_canUseBackend) {
-      return _fallbackRepository.getRequestStatus(
-        academyId: academyId,
-        oderId: oderId,
-      );
+      return Result.failure(Failure(message: 'Backend API não disponível', code: 'backend_api_not_available'));
     }
 
     try {
@@ -82,10 +64,7 @@ class AcademySearchRepositoryHybrid implements AcademySearchRepository {
         '/v1/academies/$academyId/membership/me',
       );
       if (!response.isSuccess || response.data is! Map<String, dynamic>) {
-        return _fallbackRepository.getRequestStatus(
-          academyId: academyId,
-          oderId: oderId,
-        );
+        return Result.failure(Failure(message: 'Erro ao buscar status de requisição', code: 'request_status_not_found'));
       }
 
       final map = response.data as Map<String, dynamic>;
@@ -104,10 +83,7 @@ class AcademySearchRepositoryHybrid implements AcademySearchRepository {
           return Result.success(MemberRequestStatus.none);
       }
     } catch (_) {
-      return _fallbackRepository.getRequestStatus(
-        academyId: academyId,
-        oderId: oderId,
-      );
+      return Result.failure(Failure(message: 'Erro ao buscar status de requisição', code: 'request_status_not_found'));
     }
   }
 
@@ -119,34 +95,25 @@ class AcademySearchRepositoryHybrid implements AcademySearchRepository {
     String? message,
   }) async {
     if (!_canUseBackend) {
-      return _fallbackRepository.sendJoinRequest(
-        academyId: academyId,
-        oderId: oderId,
-        modalities: modalities,
-        message: message,
-      );
+      return Result.failure(Failure(message: 'Backend API não disponível', code: 'backend_api_not_available'));
     }
 
     try {
       final response = await _backendApiClient.post(
         '/v1/academies/$academyId/membership-requests',
+        body: {
+          'academy_id': academyId,
+          'oder_id': oderId,
+          'modalities': modalities?.map((m) => m.name).join(','),
+          'message': message,
+        },
       );
       if (response.isSuccess) {
         return Result.success(null);
       }
-      return _fallbackRepository.sendJoinRequest(
-        academyId: academyId,
-        oderId: oderId,
-        modalities: modalities,
-        message: message,
-      );
+          return Result.failure(Failure(message: 'Erro ao enviar requisição de adesão', code: 'join_request_failed'));
     } catch (_) {
-      return _fallbackRepository.sendJoinRequest(
-        academyId: academyId,
-        oderId: oderId,
-        modalities: modalities,
-        message: message,
-      );
+      return Result.failure(Failure(message: 'Erro ao enviar requisição de adesão', code: 'join_request_failed'));
     }
   }
 
@@ -156,10 +123,8 @@ class AcademySearchRepositoryHybrid implements AcademySearchRepository {
     required String oderId,
   }) async {
     if (!_canUseBackend) {
-      return _fallbackRepository.cancelJoinRequest(
-        academyId: academyId,
-        oderId: oderId,
-      );
+      return Result.failure(Failure(message: 'Backend API não disponível', code: 'backend_api_not_available'));
+       
     }
 
     try {
@@ -170,31 +135,25 @@ class AcademySearchRepositoryHybrid implements AcademySearchRepository {
         return Result.success(null);
       }
 
-      return _fallbackRepository.cancelJoinRequest(
-        academyId: academyId,
-        oderId: oderId,
-      );
+          return Result.failure(Failure(message: 'Erro ao cancelar requisição de adesão', code: 'join_request_cancel_failed'));
     } catch (_) {
-      return _fallbackRepository.cancelJoinRequest(
-        academyId: academyId,
-        oderId: oderId,
-      );
+      return Result.failure(Failure(message: 'Erro ao cancelar requisição de adesão', code: 'join_request_cancel_failed'));
     }
   }
 
   @override
-  Future<Result<List<JoinRequest>>> getPendingRequests(String academyId) {
-    return _fallbackRepository.getPendingRequests(academyId);
+  Future<Result<List<JoinRequest>>> getPendingRequests(String academyId) async {
+    return Result.failure(Failure(message: 'Backend API não disponível', code: 'backend_api_not_available'));
   }
 
   @override
-  Future<Result<void>> approveRequest(String memberId) {
-    return _fallbackRepository.approveRequest(memberId);
+  Future<Result<void>> approveRequest(String memberId) async {
+    return Result.failure(Failure(message: 'Backend API não disponível', code: 'backend_api_not_available'));
   }
 
   @override
-  Future<Result<void>> rejectRequest(String memberId) {
-    return _fallbackRepository.rejectRequest(memberId);
+  Future<Result<void>> rejectRequest(String memberId) async   { 
+    return Result.failure(Failure(message: 'Backend API não disponível', code: 'backend_api_not_available'));
   }
 
   AcademySearchResult _mapAcademySearchResult(Map<String, dynamic> academy) {

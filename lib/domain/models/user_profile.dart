@@ -265,8 +265,8 @@ class UserProfile extends Equatable {
     return UserProfile(
       id: map['id'] as String,
       email: map['email'] as String,
-      displayName: map['displayName'] as String?,
-      photoUrl: map['photoUrl'] as String?,
+      displayName: map['display_name'] as String?,
+      photoUrl: map['photo_url'] as String?,
       role: UserRole.values.firstWhere(
         (r) => r.name == map['role'],
         orElse: () => UserRole.student,

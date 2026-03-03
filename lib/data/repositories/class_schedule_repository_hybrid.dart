@@ -1,19 +1,15 @@
 import 'package:self_dojo_mobile/core/utils/result.dart';
 import 'package:self_dojo_mobile/data/repositories/class_schedule_repository.dart';
-import 'package:self_dojo_mobile/data/repositories/class_schedule_repository_supabase.dart';
 import 'package:self_dojo_mobile/data/services/backend_api_client.dart';
 import 'package:self_dojo_mobile/domain/models/academy/class_schedule.dart';
 
-/// Migração gradual: usa Backend API quando configurado, com fallback para Supabase.
+/// Implementação baseada na Backend API.
 class ClassScheduleRepositoryHybrid implements ClassScheduleRepository {
   ClassScheduleRepositoryHybrid({
     required BackendApiClient backendApiClient,
-    ClassScheduleRepository? fallbackRepository,
-  })  : _backendApiClient = backendApiClient,
-        _fallbackRepository = fallbackRepository ?? ClassScheduleRepositorySupabase();
+  }) : _backendApiClient = backendApiClient;
 
   final BackendApiClient _backendApiClient;
-  final ClassScheduleRepository _fallbackRepository;
   final Map<String, String> _scheduleAcademyIdMap = {};
 
   bool get _canUseBackend => _backendApiClient.canCallProtectedApi;
@@ -26,11 +22,8 @@ class ClassScheduleRepositoryHybrid implements ClassScheduleRepository {
     bool? isActive,
   }) async {
     if (!_canUseBackend) {
-      return _fallbackRepository.getClassSchedules(
-        academyId,
-        modalityId: modalityId,
-        dayOfWeek: dayOfWeek,
-        isActive: isActive,
+      return Result.failure(
+        const Failure(message: 'Backend API não configurada para horários'),
       );
     }
 
@@ -45,11 +38,11 @@ class ClassScheduleRepositoryHybrid implements ClassScheduleRepository {
       );
 
       if (!response.isSuccess || response.data is! Map<String, dynamic>) {
-        return _fallbackRepository.getClassSchedules(
-          academyId,
-          modalityId: modalityId,
-          dayOfWeek: dayOfWeek,
-          isActive: isActive,
+        return Result.failure(
+          Failure(
+            message:
+                'Erro ao buscar horários (${response.statusCode}): ${response.rawBody ?? ''}',
+          ),
         );
       }
 
@@ -64,26 +57,27 @@ class ClassScheduleRepositoryHybrid implements ClassScheduleRepository {
       }
 
       return Result.success(items);
-    } catch (_) {
-      return _fallbackRepository.getClassSchedules(
-        academyId,
-        modalityId: modalityId,
-        dayOfWeek: dayOfWeek,
-        isActive: isActive,
+    } catch (e) {
+      return Result.failure(
+        Failure(message: 'Erro ao buscar horários: $e'),
       );
     }
   }
 
   @override
-  Future<Result<ClassSchedule?>> getClassSchedule(String id) {
-    // Interface atual não recebe academyId, então mantemos no Supabase.
-    return _fallbackRepository.getClassSchedule(id);
+  Future<Result<ClassSchedule?>> getClassSchedule(String id) async {
+    // A API atual exige academyId na rota; mantemos não implementado.
+    return Result.failure(
+      const Failure(message: 'getClassSchedule ainda não suportado via API'),
+    );
   }
 
   @override
   Future<Result<ClassSchedule>> createClassSchedule(ClassSchedule schedule) async {
     if (!_canUseBackend) {
-      return _fallbackRepository.createClassSchedule(schedule);
+      return Result.failure(
+        const Failure(message: 'Backend API não configurada para horários'),
+      );
     }
 
     try {
@@ -105,21 +99,30 @@ class ClassScheduleRepositoryHybrid implements ClassScheduleRepository {
       );
 
       if (!response.isSuccess || response.data is! Map<String, dynamic>) {
-        return _fallbackRepository.createClassSchedule(schedule);
+        return Result.failure(
+          Failure(
+            message:
+                'Erro ao criar horário (${response.statusCode}): ${response.rawBody ?? ''}',
+          ),
+        );
       }
 
       final created = ClassSchedule.fromMap(response.data as Map<String, dynamic>);
       _scheduleAcademyIdMap[created.id] = schedule.academyId;
       return Result.success(created);
-    } catch (_) {
-      return _fallbackRepository.createClassSchedule(schedule);
+    } catch (e) {
+      return Result.failure(
+        Failure(message: 'Erro ao criar horário: $e'),
+      );
     }
   }
 
   @override
   Future<Result<void>> updateClassSchedule(String id, ClassSchedule schedule) async {
     if (!_canUseBackend) {
-      return _fallbackRepository.updateClassSchedule(id, schedule);
+      return Result.failure(
+        const Failure(message: 'Backend API não configurada para horários'),
+      );
     }
 
     try {
@@ -141,13 +144,20 @@ class ClassScheduleRepositoryHybrid implements ClassScheduleRepository {
       );
 
       if (!response.isSuccess) {
-        return _fallbackRepository.updateClassSchedule(id, schedule);
+        return Result.failure(
+          Failure(
+            message:
+                'Erro ao atualizar horário (${response.statusCode}): ${response.rawBody ?? ''}',
+          ),
+        );
       }
 
       _scheduleAcademyIdMap[id] = schedule.academyId;
       return Result.success(null);
-    } catch (_) {
-      return _fallbackRepository.updateClassSchedule(id, schedule);
+    } catch (e) {
+      return Result.failure(
+        Failure(message: 'Erro ao atualizar horário: $e'),
+      );
     }
   }
 
@@ -155,7 +165,9 @@ class ClassScheduleRepositoryHybrid implements ClassScheduleRepository {
   Future<Result<void>> deleteClassSchedule(String id) async {
     final academyId = _scheduleAcademyIdMap[id];
     if (!_canUseBackend || academyId == null) {
-      return _fallbackRepository.deleteClassSchedule(id);
+      return Result.failure(
+        const Failure(message: 'Backend API não configurada para horários'),
+      );
     }
 
     try {
@@ -163,12 +175,19 @@ class ClassScheduleRepositoryHybrid implements ClassScheduleRepository {
         '/v1/academies/$academyId/class-schedules/$id',
       );
       if (!response.isSuccess) {
-        return _fallbackRepository.deleteClassSchedule(id);
+        return Result.failure(
+          Failure(
+            message:
+                'Erro ao excluir horário (${response.statusCode}): ${response.rawBody ?? ''}',
+          ),
+        );
       }
       _scheduleAcademyIdMap.remove(id);
       return Result.success(null);
-    } catch (_) {
-      return _fallbackRepository.deleteClassSchedule(id);
+    } catch (e) {
+      return Result.failure(
+        Failure(message: 'Erro ao excluir horário: $e'),
+      );
     }
   }
 
@@ -177,7 +196,9 @@ class ClassScheduleRepositoryHybrid implements ClassScheduleRepository {
     String academyId,
   ) async {
     if (!_canUseBackend) {
-      return _fallbackRepository.getAvailableSchedulesForCheckIn(academyId);
+      return Result.failure(
+        const Failure(message: 'Backend API não configurada para horários'),
+      );
     }
 
     try {
@@ -186,7 +207,12 @@ class ClassScheduleRepositoryHybrid implements ClassScheduleRepository {
       );
 
       if (!response.isSuccess || response.data is! Map<String, dynamic>) {
-        return _fallbackRepository.getAvailableSchedulesForCheckIn(academyId);
+        return Result.failure(
+          Failure(
+            message:
+                'Erro ao buscar horários para check-in (${response.statusCode}): ${response.rawBody ?? ''}',
+          ),
+        );
       }
 
       final map = response.data as Map<String, dynamic>;
@@ -200,8 +226,10 @@ class ClassScheduleRepositoryHybrid implements ClassScheduleRepository {
       }
 
       return Result.success(items);
-    } catch (_) {
-      return _fallbackRepository.getAvailableSchedulesForCheckIn(academyId);
+    } catch (e) {
+      return Result.failure(
+        Failure(message: 'Erro ao buscar horários para check-in: $e'),
+      );
     }
   }
 }
