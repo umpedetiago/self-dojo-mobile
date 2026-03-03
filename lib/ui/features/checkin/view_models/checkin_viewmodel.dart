@@ -3,7 +3,6 @@ import 'package:self_dojo_mobile/core/utils/result.dart';
 import 'package:self_dojo_mobile/data/repositories/class_schedule_repository.dart';
 import 'package:self_dojo_mobile/data/repositories/students_repository.dart';
 import 'package:self_dojo_mobile/data/services/profile_service.dart';
-import 'package:self_dojo_mobile/domain/models/academy/academy_student.dart';
 import 'package:self_dojo_mobile/domain/models/academy/class_schedule.dart';
 
 /// ViewModel para gerenciar check-in do aluno
@@ -25,14 +24,11 @@ class CheckInViewModel extends ChangeNotifier {
 
   List<ClassSchedule> _availableSchedules = [];
   String? _academyId;
-  String? _memberId;
-  Map<String, String> _studentModalityMap = {}; // modalityId -> studentModalityId
   bool _isLoading = false;
   String? _error;
 
   List<ClassSchedule> get availableSchedules => _availableSchedules;
   String? get academyId => _academyId;
-  String? get memberId => _memberId;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -49,9 +45,7 @@ class CheckInViewModel extends ChangeNotifier {
       if (!profile.hasAcademy || !profile.isApprovedInAcademy) {
         _error = 'Você precisa estar aprovado em uma academia para fazer check-in.';
         _availableSchedules = [];
-        _studentModalityMap = {};
         _academyId = null;
-        _memberId = null;
         _isLoading = false;
         notifyListeners();
         return;
@@ -60,43 +54,7 @@ class CheckInViewModel extends ChangeNotifier {
       final academyId = profile.academyId!;
       _academyId = academyId;
 
-      // Busca os dados de membership e modalidades do aluno na academia.
-      final studentsResult = await _studentsRepository.getAcademyStudents(academyId);
-
-      AcademyStudent? me;
-      studentsResult.fold(
-        onSuccess: (students) {
-          for (final s in students) {
-            if (s.oderId == _userId) {
-              me = s;
-              break;
-            }
-          }
-        },
-        onFailure: (failure) {
-          _error = failure.message;
-        },
-      );
-
-      if (me == null) {
-        _error ??= 'Seu cadastro na academia ainda não foi encontrado ou aprovado.';
-        _availableSchedules = [];
-        _studentModalityMap = {};
-        _memberId = null;
-        _isLoading = false;
-        notifyListeners();
-        return;
-      }
-
-      _memberId = me!.memberId;
-
-      // Monta o mapa modalityId -> studentModalityId para validação de matrícula.
-      _studentModalityMap = {
-        for (final m in me!.modalities)
-          if (m.modalityId.isNotEmpty) m.modalityId: m.id,
-      };
-
-      // Carrega horários disponíveis para check-in hoje.
+      // Carrega horários disponíveis para check-in hoje a partir da Backend API.
       final schedulesResult =
           await _classScheduleRepository.getAvailableSchedulesForCheckIn(academyId);
 
@@ -121,36 +79,17 @@ class CheckInViewModel extends ChangeNotifier {
 
   /// Faz check-in em um horário
   Future<Result<void>> checkIn(ClassSchedule schedule) async {
-    if (_academyId == null || _memberId == null) {
+    if (_academyId == null) {
       return Result.failure(
         Failure(message: 'Dados do aluno não carregados'),
       );
-    }
-
-    // Busca o student_modality_id correspondente
-    String? studentModalityId;
-    if (schedule.modalityId != null) {
-      studentModalityId = _studentModalityMap[schedule.modalityId];
-      if (studentModalityId == null) {
-        return Result.failure(
-          Failure(message: 'Você não está matriculado nesta modalidade'),
-        );
-      }
-    } else {
-      // Se o horário é para todas as modalidades, usa a primeira modalidade do aluno
-      if (_studentModalityMap.isEmpty) {
-        return Result.failure(
-          Failure(message: 'Você não está matriculado em nenhuma modalidade'),
-        );
-      }
-      studentModalityId = _studentModalityMap.values.first;
     }
 
     _isLoading = true;
     notifyListeners();
 
     final result = await _studentsRepository.checkIn(
-      studentModalityId: studentModalityId,
+      studentModalityId: '', // resolvido no backend (/v1/me/check-ins)
       classScheduleId: schedule.id,
       classType: schedule.classType,
     );
@@ -172,25 +111,9 @@ class CheckInViewModel extends ChangeNotifier {
 
   /// Verifica se o aluno já fez check-in hoje em algum horário
   Future<bool> hasCheckedInToday() async {
-    if (_studentModalityMap.isEmpty) {
-      return false;
-    }
-
-    final studentModalityId = _studentModalityMap.values.first;
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
-
-    final result = await _studentsRepository.getCheckInHistory(
-      studentModalityId: studentModalityId,
-      startDate: startOfDay,
-      endDate: endOfDay,
-    );
-
-    return result.fold(
-      onSuccess: (items) => items.isNotEmpty,
-      onFailure: (_) => false,
-    );
+    // Ainda não há endpoint específico para \"meus check-ins do dia\"; por
+    // enquanto não bloqueamos check-in repetido no cliente.
+    return false;
   }
 }
 

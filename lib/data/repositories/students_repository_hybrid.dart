@@ -100,15 +100,16 @@ class StudentsRepositoryHybrid implements StudentsRepository {
     }
 
     try {
+      final body = <String, dynamic>{
+        if (classScheduleId != null && classScheduleId.isNotEmpty)
+          'class_schedule_id': classScheduleId,
+        if (classType != null && classType.isNotEmpty) 'class_type': classType,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      };
+
       final response = await _backendApiClient.post(
-        '/v1/check-ins',
-        body: {
-          'student_modality_id': studentModalityId,
-          if (classScheduleId != null && classScheduleId.isNotEmpty)
-            'class_schedule_id': classScheduleId,
-          if (classType != null && classType.isNotEmpty) 'class_type': classType,
-          if (notes != null && notes.isNotEmpty) 'notes': notes,
-        },
+        '/v1/me/check-ins',
+        body: body,
       );
 
       if (!response.isSuccess) {
