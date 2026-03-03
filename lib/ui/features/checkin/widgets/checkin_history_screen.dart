@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:self_dojo_mobile/core/theme/app_colors.dart';
+import 'package:self_dojo_mobile/data/services/backend_api_client.dart';
 import 'package:self_dojo_mobile/data/repositories/students_repository.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart' as martial_arts;
 import 'package:self_dojo_mobile/ui/features/auth/view_models/auth_viewmodel.dart';
@@ -25,6 +26,7 @@ class CheckInHistoryScreen extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (ctx) => CheckInHistoryViewModel(
         studentsRepository: ctx.read<StudentsRepository>(),
+        backendApiClient: ctx.read<BackendApiClient>(),
         userId: userId,
       )..loadHistory(),
       child: const _CheckInHistoryContent(),
