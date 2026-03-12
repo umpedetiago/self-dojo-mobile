@@ -3,6 +3,7 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -51,17 +52,18 @@ class DefaultFirebaseOptions {
     storageBucket: 'YOUR_PROJECT_ID.appspot.com',
   );
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB4jr0PxLuNg0IZfU1zwBGP_tmC2F1xZvU',
-    appId: '1:1055602452052:android:f0a676d51bdded4d2d2fc1',
-    messagingSenderId: '1055602452052',
-    projectId: 'self-dojo-mobile',
-    storageBucket: 'self-dojo-mobile.firebasestorage.app',
-  );
+  static  FirebaseOptions android = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY'] ?? 'YOUR_ANDROID_API_KEY',
+    appId: dotenv.env['FIREBASE_APP_ID_ANDROID'] ?? 'YOUR_ANDROID_APP_ID',
+        messagingSenderId: '1055602452052',
+        projectId: 'self-dojo-mobile',
+        storageBucket: 'self-dojo-mobile.firebasestorage.app',
+      );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBqQmzNPC2NimNoKeh5jmRvMg9LBzOh3ms',
-    appId: '1:1055602452052:ios:725ec695964c60ab2d2fc1',
+  static FirebaseOptions ios = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY'] ??
+        'YOUR_IOS_API_KEY',
+    appId: dotenv.env['FIREBASE_APP_ID_IOS'] ?? 'YOUR_IOS_APP_ID',
     messagingSenderId: '1055602452052',
     projectId: 'self-dojo-mobile',
     storageBucket: 'self-dojo-mobile.firebasestorage.app',
