@@ -438,11 +438,28 @@ CREATE OR REPLACE FUNCTION promote_student(
 RETURNS VOID AS $$
 DECLARE
   v_current_classes INTEGER;
+  v_last_belt_id VARCHAR(50);
+  v_last_degree INTEGER;
 BEGIN
   -- Pega classes atuais
   SELECT total_classes INTO v_current_classes
   FROM student_modalities WHERE id = p_student_modality_id;
-  
+
+  -- Verifica último registro de graduação para evitar duplicação
+  SELECT belt_id, degree
+  INTO v_last_belt_id, v_last_degree
+  FROM graduation_history
+  WHERE student_modality_id = p_student_modality_id
+  ORDER BY promoted_at DESC, created_at DESC
+  LIMIT 1;
+
+  -- Se faixa e grau forem iguais ao último registro, não grava novo histórico nem atualiza graduação
+  IF v_last_belt_id IS NOT NULL
+     AND v_last_belt_id = p_new_belt_id
+     AND v_last_degree = p_degree THEN
+    RETURN;
+  END IF;
+
   -- Registra no histórico
   INSERT INTO graduation_history (
     student_modality_id, belt_id, degree, promoted_by, classes_total, notes

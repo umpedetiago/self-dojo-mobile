@@ -490,7 +490,7 @@ class _AddModalitySheetState extends State<_AddModalitySheet> {
     if (widget.availableModalities.isNotEmpty) {
       _selectedModality = widget.availableModalities.first;
       final art = MartialArtsConfig.getByType(_selectedModality!.type);
-      _selectedBeltId = art.belts.first.id;
+      _selectedBeltId = art.belts?.first.id;
     }
   }
 
@@ -564,7 +564,7 @@ class _AddModalitySheetState extends State<_AddModalitySheet> {
               onTap: () {
                 setState(() {
                   _selectedModality = modality;
-                  _selectedBeltId = art.belts.first.id;
+                  _selectedBeltId = art.belts?.first.id;
                 });
               },
               child: Container(
@@ -622,17 +622,17 @@ class _AddModalitySheetState extends State<_AddModalitySheet> {
                 scrollDirection: Axis.horizontal,
                 itemCount: MartialArtsConfig.getByType(_selectedModality!.type)
                     .belts
-                    .length,
+                    ?.length ?? 0,
                 itemBuilder: (context, index) {
                   final art =
                       MartialArtsConfig.getByType(_selectedModality!.type);
-                  final belt = art.belts[index];
-                  final isSelectedBelt = _selectedBeltId == belt.id;
+                  final belt = art.belts?[index];
+                  final isSelectedBelt = _selectedBeltId == belt?.id;
 
                   return GestureDetector(
                     onTap: () {
                       setState(() {
-                        _selectedBeltId = belt.id;
+                        _selectedBeltId = belt?.id;
                       });
                     },
                     child: Container(
@@ -643,12 +643,12 @@ class _AddModalitySheetState extends State<_AddModalitySheet> {
                       ),
                       decoration: BoxDecoration(
                         color: isSelectedBelt
-                            ? belt.color.withValues(alpha: 0.2)
+                            ? belt?.color.withValues(alpha: 0.2) ?? Colors.transparent
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
                           color: isSelectedBelt
-                              ? belt.color
+                              ? belt?.color ?? Colors.transparent
                               : AppColors.surfaceVariantDark
                                   .withValues(alpha: 0.5),
                           width: isSelectedBelt ? 2 : 1,
@@ -661,19 +661,19 @@ class _AddModalitySheetState extends State<_AddModalitySheet> {
                             width: 20,
                             height: 10,
                             decoration: BoxDecoration(
-                              color: belt.color,
+                              color: belt?.color ?? Colors.transparent,
                               borderRadius: BorderRadius.circular(2),
-                              border: belt.color == Colors.white
+                              border: belt?.color == Colors.white
                                   ? Border.all(color: Colors.grey.shade400)
                                   : null,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            belt.name,
+                            belt?.name ?? '',
                             style: TextStyle(
                               color: isSelectedBelt
-                                  ? belt.color.computeLuminance() > 0.5
+                                  ? (belt?.color.computeLuminance() ?? 0.0) > 0.5
                                       ? Colors.black87
                                       : AppColors.textPrimaryDark
                                   : AppColors.textSecondaryDark,

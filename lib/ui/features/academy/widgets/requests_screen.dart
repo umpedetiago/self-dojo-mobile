@@ -633,7 +633,7 @@ class _ApproveRequestSheetState extends State<_ApproveRequestSheet> {
       _selectedModalities[type] = false;
       // Pega a primeira faixa (iniciante) como padrão
       final art = MartialArtsConfig.getByType(type);
-      _selectedBelts[type] = art.belts.first.id;
+      _selectedBelts[type] = art.belts?.first.id ?? '';
     }
   }
 
@@ -839,15 +839,15 @@ class _ApproveRequestSheetState extends State<_ApproveRequestSheet> {
                     height: 40,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: art.belts.length,
+                      itemCount: art.belts?.length ?? 0,
                       itemBuilder: (context, index) {
-                        final belt = art.belts[index];
-                        final isSelectedBelt = _selectedBelts[type] == belt.id;
+                        final belt = art.belts?[index];
+                        final isSelectedBelt = _selectedBelts[type] == belt?.id;
 
                         return GestureDetector(
                           onTap: () {
                             setState(() {
-                              _selectedBelts[type] = belt.id;
+                              _selectedBelts[type] = belt?.id ?? '';
                             });
                           },
                           child: Container(
@@ -858,12 +858,12 @@ class _ApproveRequestSheetState extends State<_ApproveRequestSheet> {
                             ),
                             decoration: BoxDecoration(
                               color: isSelectedBelt
-                                  ? belt.color.withValues(alpha: 0.2)
+                                  ? belt?.color.withValues(alpha: 0.2) ?? Colors.transparent
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: isSelectedBelt
-                                    ? belt.color
+                                    ? belt?.color ?? Colors.transparent
                                     : AppColors.surfaceVariantDark
                                         .withValues(alpha: 0.5),
                                 width: isSelectedBelt ? 2 : 1,
@@ -876,19 +876,19 @@ class _ApproveRequestSheetState extends State<_ApproveRequestSheet> {
                                   width: 16,
                                   height: 8,
                                   decoration: BoxDecoration(
-                                    color: belt.color,
+                                    color: belt?.color ?? Colors.transparent,
                                     borderRadius: BorderRadius.circular(2),
-                                    border: belt.color == Colors.white
+                                    border: belt?.color == Colors.white
                                         ? Border.all(color: Colors.grey.shade400)
                                         : null,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  belt.name,
+                                  belt?.name ?? '',
                                   style: TextStyle(
                                     color: isSelectedBelt
-                                        ? belt.color.computeLuminance() > 0.5
+                                        ? (belt?.color.computeLuminance() ?? 0.0 )> 0.5
                                             ? Colors.black87
                                             : AppColors.textPrimaryDark
                                         : AppColors.textSecondaryDark,

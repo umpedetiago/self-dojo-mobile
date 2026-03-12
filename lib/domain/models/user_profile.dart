@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:self_dojo_mobile/domain/models/academy/student_modality.dart';
+import 'package:self_dojo_mobile/domain/models/academy/user_graduation_overview.dart';
 import 'package:self_dojo_mobile/domain/models/academy/user_role.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/belt.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/martial_art.dart';
@@ -146,80 +147,68 @@ class UserProfile extends Equatable {
       paymentStatus == PaymentStatus.active ||
       paymentStatus == PaymentStatus.exempt;
 
+  /// Visão agregada das informações de graduação do usuário.
+  ///
+  /// Usa as modalidades da academia como fonte principal e faz
+  /// fallback para os campos legados quando necessário.
+  UserGraduationOverview get graduationOverview => UserGraduationOverview(
+        modalities: enrolledModalities,
+        legacyMartialArtType: martialArtType,
+        legacyGraduation: graduation,
+        legacyGraduationHistory: graduationHistory,
+        legacyTotalClasses: totalClasses,
+        legacyStartDate: startDate,
+      );
+
   /// Retorna a arte marcial atual (para exibição)
   /// Se tem modalidades, retorna a primeira; senão usa o campo legado
   MartialArt get martialArt {
-    if (enrolledModalities.isNotEmpty) {
-      return enrolledModalities.first.martialArt;
-    }
-    if (martialArtType == null) {
-      return MartialArtsConfig.defaultArt;
-    }
-    return MartialArtsConfig.getByType(martialArtType!);
+    return graduationOverview.martialArt;
   }
 
   /// Retorna a faixa atual (para exibição principal)
   Belt? get currentBelt {
-    if (enrolledModalities.isNotEmpty) {
-      return enrolledModalities.first.currentBelt;
-    }
-    if (graduation == null) return martialArt.initialBelt;
-    return martialArt.getBeltById(graduation!.beltId);
+    return graduationOverview.currentBelt;
   }
 
   /// Retorna a próxima faixa
   Belt? get nextBelt {
-    if (enrolledModalities.isNotEmpty) {
-      return enrolledModalities.first.nextBelt;
-    }
-    final current = currentBelt;
-    if (current == null) return null;
-    return martialArt.getNextBelt(current);
+    return graduationOverview.nextBelt;
   }
 
   /// Calcula aulas restantes para próxima graduação
   int get classesUntilPromotion {
-    if (enrolledModalities.isNotEmpty) {
-      final modality = enrolledModalities.first;
-      final next = modality.nextBelt;
-      if (next == null) return 0;
-      final remaining =
-          next.minClassesForPromotion - modality.graduation.classesAtCurrentBelt;
-      return remaining > 0 ? remaining : 0;
-    }
-    final next = nextBelt;
-    if (next == null || graduation == null) return 0;
-    final remaining =
-        next.minClassesForPromotion - graduation!.classesAtCurrentBelt;
-    return remaining > 0 ? remaining : 0;
+    return graduationOverview.classesUntilNextBelt;
+  }
+
+  /// Aulas restantes até a próxima faixa na modalidade principal
+  int get classesUntilNextBelt {
+    return graduationOverview.classesUntilNextBelt;
+  }
+
+  /// Aulas restantes até o próximo grau na modalidade principal
+  int get classesUntilNextDegree {
+    return graduationOverview.classesUntilNextDegree;
   }
 
   /// Retorna total de aulas (soma de todas modalidades ou legado)
   int get totalClassesAll {
-    if (enrolledModalities.isNotEmpty) {
-      return enrolledModalities.fold(0, (sum, m) => sum + m.totalClasses);
-    }
-    return totalClasses;
+    return graduationOverview.totalClassesAll;
   }
 
   /// Calcula tempo de treino
   Duration? get trainingTime {
-    if (startDate == null) return null;
-    return DateTime.now().difference(startDate!);
+    return graduationOverview.trainingTime;
   }
 
   /// Retorna modalidade por tipo
   StudentModality? getEnrolledModality(MartialArtType type) {
-    try {
-      return enrolledModalities.firstWhere((m) => m.type == type);
-    } catch (_) {
-      return null;
-    }
+    return graduationOverview.getModality(type);
   }
 
   /// Verifica se está matriculado em uma modalidade
   bool isEnrolledIn(MartialArtType type) =>
-      enrolledModalities.any((m) => m.type == type);
+      graduationOverview.isEnrolledIn(type);
 
   /// Perfil vazio
   static const empty = UserProfile(id: '', email: '');

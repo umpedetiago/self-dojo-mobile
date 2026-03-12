@@ -169,7 +169,7 @@ class _HomeContentState extends State<_HomeContent> {
                           StatsCard(
                             icon: Icons.trending_up,
                             label: 'Próxima Faixa',
-                            value: '${profile.classesUntilPromotion} aulas',
+                            value: '${profile.classesUntilNextBelt} aulas',
                             color: _getBeltColor(nextBelt),
                           )
                         else
@@ -178,6 +178,13 @@ class _HomeContentState extends State<_HomeContent> {
                             label: 'Graduação',
                             value: 'Máxima',
                             color: Colors.amber,
+                          ),
+                        if (profile.classesUntilNextDegree > 0)
+                          StatsCard(
+                            icon: Icons.stacked_line_chart,
+                            label: 'Próximo Grau',
+                            value: '${profile.classesUntilNextDegree} aulas',
+                            color: AppColors.primaryDark,
                           ),
                       ]),
                     ),

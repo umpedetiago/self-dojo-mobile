@@ -433,7 +433,7 @@ class _EditProfileContentState extends State<_EditProfileContent> {
               isExpanded: true,
               dropdownColor: AppColors.surfaceDark,
               icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.primary),
-              items: belts.map((belt) {
+              items: belts?.map((belt) {
                 return DropdownMenuItem(
                   value: belt.id,
                   child: Row(

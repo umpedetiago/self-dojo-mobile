@@ -4,6 +4,7 @@ import 'package:self_dojo_mobile/core/utils/result.dart';
 import 'package:self_dojo_mobile/data/dtos/backend/me_response_dto.dart';
 import 'package:self_dojo_mobile/data/repositories/profile_repository.dart';
 import 'package:self_dojo_mobile/data/services/backend_api_client.dart';
+import 'package:self_dojo_mobile/domain/models/academy/academy_modality.dart';
 import 'package:self_dojo_mobile/domain/models/academy/student_modality.dart';
 import 'package:self_dojo_mobile/domain/models/academy/user_role.dart';
 import 'package:self_dojo_mobile/domain/models/martial_arts/belt.dart';
@@ -42,7 +43,16 @@ class ProfileRepositoryHybrid implements ProfileRepository {
     }
 
     final map = response.data as Map<String, dynamic>;
-    final profile = _mapBackendProfile(map);
+    final dto = BackendMeResponseDto.fromJson(map);
+
+    Map<String, AcademyModality>? academyModalitiesById;
+    if (dto.academyId != null && dto.academyId!.isNotEmpty) {
+      academyModalitiesById =
+          await _loadAcademyModalities(dto.academyId!);
+    }
+
+    final profile =
+        _mapBackendProfile(dto, academyModalitiesById: academyModalitiesById);
     return Result.success(profile);
   }
 
@@ -114,9 +124,93 @@ class ProfileRepositoryHybrid implements ProfileRepository {
     );
   }
 
-  UserProfile _mapBackendProfile(Map<String, dynamic> data) {
-    final dto = BackendMeResponseDto.fromJson(data);
+  Future<Map<String, AcademyModality>> _loadAcademyModalities(
+    String academyId,
+  ) async {
+    try {
+      final response = await _backendApiClient.get('/v1/academies/$academyId');
+      if (!response.isSuccess || response.data is! Map<String, dynamic>) {
+        return {};
+      }
 
+      final map = response.data as Map<String, dynamic>;
+      final rawModalities =
+          (map['academy_modalities'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .toList();
+
+      final items = rawModalities
+          .map(_mapAcademyModalityFromBackend)
+          .toList();
+
+      return {
+        for (final modality in items) modality.id: modality,
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
+  AcademyModality _mapAcademyModalityFromBackend(
+    Map<String, dynamic> data,
+  ) {
+    final typeStr = data['martial_art_type'] as String? ?? 'jiuJitsu';
+    final type = MartialArtType.values.firstWhere(
+      (t) => t.name == typeStr,
+      orElse: () => MartialArtType.jiuJitsu,
+    );
+
+    final beltConfigsData =
+        (data['belt_configs'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
+    final beltConfigs = beltConfigsData.map((b) {
+      return BeltConfig(
+        beltId: b['belt_id'] as String? ?? '',
+        minClasses: b['min_classes'] as int? ?? 0,
+        minMonths: b['min_months'] as int?,
+        minClassesPerDegree:
+            b['min_classes_per_degree'] as int?,
+        requiresExam: b['requires_exam'] as bool? ?? false,
+        examFee: (b['exam_fee'] as num?)?.toDouble(),
+        notes: b['notes'] as String?,
+      );
+    }).toList();
+
+    final graduationConfig = GraduationConfig(
+      martialArtType: type,
+      belts: beltConfigs,
+      useDefaultConfig:
+          data['use_default_graduation'] as bool? ?? true,
+      configuredBy: null,
+      lastUpdated: data['graduation_updated_at'] != null
+          ? DateTime.tryParse(
+              data['graduation_updated_at'].toString(),
+            )
+          : null,
+    );
+
+    final teacherIds =
+        (data['teacher_ids'] as List<dynamic>? ?? [])
+            .map((e) => e.toString())
+            .toList();
+
+    return AcademyModality(
+      id: data['id'] as String? ?? '',
+      type: type,
+      masterId: data['master_id'] as String?,
+      teacherIds: teacherIds,
+      instructorIds: const [],
+      graduationConfig: graduationConfig,
+      isActive: data['is_active'] as bool? ?? true,
+    );
+  }
+
+  UserProfile _mapBackendProfile(
+    BackendMeResponseDto dto, {
+    Map<String, AcademyModality>? academyModalitiesById,
+  }) {
     final role = UserRole.values.firstWhere(
       (r) => r.name == dto.role,
       orElse: () => UserRole.student,
@@ -136,19 +230,35 @@ class ProfileRepositoryHybrid implements ProfileRepository {
     final enrolledModalities = dto.studentModalities.map((m) {
       MartialArtType type = MartialArtType.jiuJitsu;
       try {
-        type = MartialArtType.values.firstWhere((t) => t.name == m.martialArtType);
+        type = MartialArtType.values
+            .firstWhere((t) => t.name == m.martialArtType);
       } catch (_) {
         type = MartialArtType.jiuJitsu;
       }
 
       final art = MartialArtsConfig.getByType(type);
-      final beltId = m.beltId.isNotEmpty ? m.beltId : art.initialBelt.id;
+      final beltId =
+          m.beltId.isNotEmpty ? m.beltId : art.initialBelt?.id;
+
+      AcademyModality? academyModality;
+      if (academyModalitiesById != null &&
+          academyModalitiesById.isNotEmpty) {
+        academyModality = academyModalitiesById[m.modalityId];
+        if (academyModality == null) {
+          try {
+            academyModality = academyModalitiesById.values
+                .firstWhere((mod) => mod.type == type);
+          } catch (_) {
+            academyModality = null;
+          }
+        }
+      }
 
       return StudentModality(
         type: type,
         assignedTeacherId: m.assignedTeacherId,
         graduation: UserGraduation(
-          beltId: beltId,
+          beltId: beltId ?? '',
           degree: m.degree,
           promotionDate: m.promotionDate,
           classesAtCurrentBelt: m.classesAtCurrentBelt,
@@ -156,20 +266,24 @@ class ProfileRepositoryHybrid implements ProfileRepository {
         ),
         graduationHistory: m.graduationHistory
             .where((h) => h.beltId.isNotEmpty)
-            .map((h) => GraduationHistory(
-                  beltId: h.beltId,
-                  degree: h.degree,
-                  date: h.promotedAt ?? DateTime.now(),
-                  notes: h.notes,
-                ))
+            .map(
+              (h) => GraduationHistory(
+                beltId: h.beltId,
+                degree: h.degree,
+                date: h.promotedAt ?? DateTime.now(),
+                notes: h.notes,
+              ),
+            )
             .toList(),
         totalClasses: m.totalClasses,
         enrolledAt: m.enrolledAt ?? DateTime.now(),
+        academyModality: academyModality,
       );
     }).toList();
 
     StudentModality? primaryModality;
-    if (dto.primaryStudentModalityId != null && dto.primaryStudentModalityId!.isNotEmpty) {
+    if (dto.primaryStudentModalityId != null &&
+        dto.primaryStudentModalityId!.isNotEmpty) {
       for (var i = 0; i < enrolledModalities.length; i++) {
         final m = dto.studentModalities[i];
         if (m.id == dto.primaryStudentModalityId) {
@@ -187,7 +301,9 @@ class ProfileRepositoryHybrid implements ProfileRepository {
         orElse: () => enrolledModalities.first,
       );
     }
-    primaryModality ??= enrolledModalities.isNotEmpty ? enrolledModalities.first : null;
+    primaryModality ??= enrolledModalities.isNotEmpty
+        ? enrolledModalities.first
+        : null;
 
     final totalClasses = primaryModality?.totalClasses ?? 0;
 
@@ -211,7 +327,8 @@ class ProfileRepositoryHybrid implements ProfileRepository {
       // Campos de conveniência (mantém compat com UI/legado)
       martialArtType: primaryModality?.type ?? martialArtType,
       graduation: primaryModality?.graduation,
-      graduationHistory: primaryModality?.graduationHistory ?? const [],
+      graduationHistory:
+          primaryModality?.graduationHistory ?? const [],
       totalClasses: totalClasses,
       createdAt: dto.createdAt,
     );

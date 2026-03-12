@@ -55,6 +55,7 @@ class StudentModality extends Equatable {
     
     if (academyModality != null) {
       final belts = academyModality!.beltsWithDatabaseConfig;
+      if (belts == null) return null;
       final currentIndex = belts.indexWhere((b) => b.id == current.id);
       if (currentIndex == -1 || currentIndex >= belts.length - 1) {
         return null;
@@ -65,6 +66,43 @@ class StudentModality extends Equatable {
     return martialArt.getNextBelt(current);
   }
 
+  /// Aulas restantes até a próxima faixa, considerando a configuração da academia
+  int get classesUntilNextBelt {
+    final next = nextBelt;
+    if (next == null) return 0;
+
+    final targetClasses = next.minClassesForPromotion;
+    if (targetClasses <= 0) return 0;
+
+    final remaining = targetClasses - graduation.classesAtCurrentBelt;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  /// Aulas restantes até o próximo grau na faixa atual, usando `minClassesPerDegree` da academia
+  int get classesUntilNextDegree {
+    final current = currentBelt;
+    if (current == null) return 0;
+
+    // Se não há graus configurados para a faixa, não há próximo grau
+    if (current.maxDegrees <= 0) return 0;
+    if (graduation.degree >= current.maxDegrees) return 0;
+
+    // Busca configuração específica da faixa na academia (quando existir)
+    final beltConfig = academyModality?.graduationConfig
+        .getBeltConfig(graduation.beltId);
+
+    final perDegree = beltConfig?.minClassesPerDegree;
+    if (perDegree == null || perDegree <= 0) return 0;
+
+    // Threshold cumulativo esperado para o próximo grau
+    final targetTotalForNextDegree =
+        perDegree * (graduation.degree + 1);
+
+    final remaining =
+        targetTotalForNextDegree - graduation.classesAtCurrentBelt;
+    return remaining > 0 ? remaining : 0;
+  }
+
   /// Tempo de treino nesta modalidade
   Duration get trainingTime => DateTime.now().difference(enrolledAt);
 
@@ -73,7 +111,7 @@ class StudentModality extends Equatable {
     final martialArt = MartialArtsConfig.getByType(type);
     return StudentModality(
       type: type,
-      graduation: UserGraduation.initial(martialArt.initialBelt.id),
+      graduation: UserGraduation.initial(martialArt.initialBelt?.id ?? ''),
       enrolledAt: DateTime.now(),
     );
   }

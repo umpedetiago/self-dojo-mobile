@@ -113,7 +113,7 @@ class ProfileViewModel extends ChangeNotifier {
     final newProfile = _profile.copyWith(
       martialArtType: newType,
       graduation: _profile.graduation?.copyWith(
-        beltId: martialArt.initialBelt.id,
+        beltId: martialArt.initialBelt?.id,
         degree: 0,
         classesAtCurrentBelt: 0,
       ),
