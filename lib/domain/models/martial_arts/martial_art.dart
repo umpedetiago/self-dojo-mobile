@@ -97,7 +97,6 @@ class MartialArtsConfig {
       color: Colors.white,
       order: 0,
       maxDegrees: 4,
-      minClassesForPromotion: 0,
       minMonthsAtBelt: 0,
     );
 

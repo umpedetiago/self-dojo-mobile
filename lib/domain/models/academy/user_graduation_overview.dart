@@ -64,17 +64,6 @@ class UserGraduationOverview extends Equatable {
     return martialArt.getNextBelt(current);
   }
 
-  /// Aulas restantes até a próxima faixa na modalidade principal.
-  int get classesUntilNextBelt {
-    if (primaryModality != null) {
-      return primaryModality!.classesUntilNextBelt;
-    }
-    final next = nextBelt;
-    if (next == null || legacyGraduation == null) return 0;
-    final remaining =
-        next.minClassesForPromotion - legacyGraduation!.classesAtCurrentBelt;
-    return remaining > 0 ? remaining : 0;
-  }
 
   /// Aulas restantes até o próximo grau na modalidade principal.
   int get classesUntilNextDegree {

@@ -13,6 +13,9 @@ class StudentModality extends Equatable {
     this.graduationHistory = const [],
     this.totalClasses = 0,
     required this.enrolledAt,
+    this.backendClassesUntilNextBelt,
+    this.backendClassesUntilNextDegree,
+    this.backendTrainingTimeDays,
     this.academyModality,
   });
 
@@ -33,6 +36,14 @@ class StudentModality extends Equatable {
 
   /// Data de matrícula nesta modalidade
   final DateTime enrolledAt;
+
+  /// Valores já calculados pela Backend API (quando disponíveis)
+  ///
+  /// Quando presentes, estes campos têm prioridade sobre o cálculo local,
+  /// permitindo que toda a regra de negócios fique centralizada no backend.
+  final int? backendClassesUntilNextBelt;
+  final int? backendClassesUntilNextDegree;
+  final int? backendTrainingTimeDays;
 
   /// Modalidade da academia (opcional, usado para obter requisitos do banco)
   final AcademyModality? academyModality;
@@ -65,21 +76,14 @@ class StudentModality extends Equatable {
     
     return martialArt.getNextBelt(current);
   }
-
-  /// Aulas restantes até a próxima faixa, considerando a configuração da academia
-  int get classesUntilNextBelt {
-    final next = nextBelt;
-    if (next == null) return 0;
-
-    final targetClasses = next.minClassesForPromotion;
-    if (targetClasses <= 0) return 0;
-
-    final remaining = targetClasses - graduation.classesAtCurrentBelt;
-    return remaining > 0 ? remaining : 0;
-  }
+ 
 
   /// Aulas restantes até o próximo grau na faixa atual, usando `minClassesPerDegree` da academia
   int get classesUntilNextDegree {
+    if (backendClassesUntilNextDegree != null) {
+      return backendClassesUntilNextDegree!;
+    }
+
     final current = currentBelt;
     if (current == null) return 0;
 
@@ -104,7 +108,12 @@ class StudentModality extends Equatable {
   }
 
   /// Tempo de treino nesta modalidade
-  Duration get trainingTime => DateTime.now().difference(enrolledAt);
+  Duration get trainingTime {
+    if (backendTrainingTimeDays != null && backendTrainingTimeDays! > 0) {
+      return Duration(days: backendTrainingTimeDays!);
+    }
+    return DateTime.now().difference(enrolledAt);
+  }
 
   /// Cria matrícula inicial em uma modalidade
   factory StudentModality.initial(MartialArtType type) {
@@ -155,6 +164,9 @@ class StudentModality extends Equatable {
     List<GraduationHistory>? graduationHistory,
     int? totalClasses,
     DateTime? enrolledAt,
+    int? backendClassesUntilNextBelt,
+    int? backendClassesUntilNextDegree,
+    int? backendTrainingTimeDays,
     AcademyModality? academyModality,
   }) {
     return StudentModality(
@@ -164,6 +176,12 @@ class StudentModality extends Equatable {
       graduationHistory: graduationHistory ?? this.graduationHistory,
       totalClasses: totalClasses ?? this.totalClasses,
       enrolledAt: enrolledAt ?? this.enrolledAt,
+      backendClassesUntilNextBelt:
+          backendClassesUntilNextBelt ?? this.backendClassesUntilNextBelt,
+      backendClassesUntilNextDegree:
+          backendClassesUntilNextDegree ?? this.backendClassesUntilNextDegree,
+      backendTrainingTimeDays:
+          backendTrainingTimeDays ?? this.backendTrainingTimeDays,
       academyModality: academyModality ?? this.academyModality,
     );
   }
@@ -216,6 +234,9 @@ class StudentModality extends Equatable {
         graduationHistory,
         totalClasses,
         enrolledAt,
+        backendClassesUntilNextBelt,
+        backendClassesUntilNextDegree,
+        backendTrainingTimeDays,
         academyModality,
       ];
 }

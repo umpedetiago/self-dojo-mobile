@@ -27,15 +27,6 @@ class GraduationConfig extends Equatable {
     }
   }
 
-  /// Retorna aulas mínimas para uma faixa (usa padrão se não configurado)
-  int getMinClasses(String beltId) {
-    if (useDefaultConfig) {
-      final martialArt = MartialArtsConfig.getByType(martialArtType);
-      final belt = martialArt.getBeltById(beltId);
-      return belt?.minClassesForPromotion ?? 0;
-    }
-    return getBeltConfig(beltId)?.minClasses ?? 0;
-  }
 
   /// Converte para Map (Firestore)
   Map<String, dynamic> toMap() {
@@ -213,7 +204,6 @@ class AcademyModality extends Equatable {
       secondaryColor: baseBelt.secondaryColor,
       order: baseBelt.order,
       maxDegrees: baseBelt.maxDegrees,
-      minClassesForPromotion: beltConfig.minClasses, // Do banco
       minMonthsAtBelt: beltConfig.minMonths, // Do banco
       hasBlackTip: baseBelt.hasBlackTip,
       degreeMarkColor: baseBelt.degreeMarkColor,
@@ -222,10 +212,10 @@ class AcademyModality extends Equatable {
   }
 
   /// Retorna todas as faixas com requisitos do banco quando disponível
-  List<Belt> get beltsWithDatabaseConfig {
+  List<Belt>? get beltsWithDatabaseConfig {
     if (graduationConfig.useDefaultConfig) return martialArt.belts;
 
-    return martialArt.belts.map((baseBelt) {
+    return martialArt.belts?.map((baseBelt) {
       final beltConfig = graduationConfig.getBeltConfig(baseBelt.id);
       if (beltConfig == null) return baseBelt;
 
@@ -236,7 +226,6 @@ class AcademyModality extends Equatable {
         secondaryColor: baseBelt.secondaryColor,
         order: baseBelt.order,
         maxDegrees: baseBelt.maxDegrees,
-        minClassesForPromotion: beltConfig.minClasses,
         minMonthsAtBelt: beltConfig.minMonths,
         hasBlackTip: baseBelt.hasBlackTip,
         degreeMarkColor: baseBelt.degreeMarkColor,

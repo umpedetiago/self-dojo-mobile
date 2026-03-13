@@ -36,9 +36,12 @@ class EnrolledModalitiesWidget extends StatelessWidget {
           ...profile.enrolledModalities.map((modality) {
             final martialArt = modality.martialArt;
             final belt = modality.currentBelt;
+            final classesUntilNextDegree = modality.classesUntilNextDegree;
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
@@ -73,6 +76,30 @@ class EnrolledModalitiesWidget extends StatelessWidget {
                             fontSize: 12,
                           ),
                         ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            // Total de aulas na modalidade
+                            _InfoChip(
+                              icon: Icons.fitness_center,
+                              label: '${modality.totalClasses} aulas',
+                            ),
+                            const SizedBox(width: 8),
+                            // Próxima faixa (se houver)
+                            if (modality.classesUntilNextDegree > 0)
+                              _InfoChip(
+                                icon: Icons.trending_up,
+                                label: '${modality.classesUntilNextDegree} até a próxima faixa',
+                              ),
+                            const SizedBox(width: 8),
+                            // Próximo grau (se houver)
+                            if (classesUntilNextDegree > 0)
+                              _InfoChip(
+                                icon: Icons.stacked_line_chart,
+                                label: '$classesUntilNextDegree até o próximo grau',
+                              ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -80,6 +107,7 @@ class EnrolledModalitiesWidget extends StatelessWidget {
                     Container(
                       width: 40,
                       height: 12,
+                      margin: const EdgeInsets.only(left: 8, top: 4),
                       decoration: BoxDecoration(
                         color: belt.color,
                         borderRadius: BorderRadius.circular(2),
@@ -92,6 +120,45 @@ class EnrolledModalitiesWidget extends StatelessWidget {
               ),
             );
           }),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariantDark.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 12,
+            color: AppColors.textTertiaryDark,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: AppTextStyles.bodySmall.copyWith(
+              fontSize: 11,
+              color: AppColors.textTertiaryDark,
+            ),
+          ),
         ],
       ),
     );

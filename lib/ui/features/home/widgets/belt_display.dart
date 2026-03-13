@@ -153,7 +153,7 @@ class BeltDisplay extends StatelessWidget {
                       // Decide se mostra aparadores:
                       // - Se tem graus > 0: sempre mostra
                       // - Se graus = 0: usa o showAparadores da graduação
-                      final showAparadores = hasDegrees || (graduation?.showAparadores ?? false);
+                      final showAparadores = (hasDegrees || (graduation?.showAparadores ?? false)) && belt!.id == 'bjj_black';
                       
                       return Container(
                         width: hasRedTip && showAparadores ? 80 : 70,

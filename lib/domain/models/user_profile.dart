@@ -167,9 +167,7 @@ class UserProfile extends Equatable {
   }
 
   /// Retorna a faixa atual (para exibição principal)
-  Belt? get currentBelt {
-    return graduationOverview.currentBelt;
-  }
+  
 
   /// Retorna a próxima faixa
   Belt? get nextBelt {
@@ -178,12 +176,7 @@ class UserProfile extends Equatable {
 
   /// Calcula aulas restantes para próxima graduação
   int get classesUntilPromotion {
-    return graduationOverview.classesUntilNextBelt;
-  }
-
-  /// Aulas restantes até a próxima faixa na modalidade principal
-  int get classesUntilNextBelt {
-    return graduationOverview.classesUntilNextBelt;
+    return graduationOverview.classesUntilNextDegree;
   }
 
   /// Aulas restantes até o próximo grau na modalidade principal

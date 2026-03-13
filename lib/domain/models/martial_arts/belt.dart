@@ -9,7 +9,6 @@ class Belt extends Equatable {
     required this.color,
     required this.order,
     required this.maxDegrees,
-    required this.minClassesForPromotion,
     this.secondaryColor,
     this.minMonthsAtBelt,
     this.hasBlackTip = false,
@@ -35,8 +34,6 @@ class Belt extends Equatable {
   /// Número máximo de graus nesta faixa
   final int maxDegrees;
 
-  /// Número mínimo de aulas para promoção à próxima faixa
-  final int minClassesForPromotion;
 
   /// Tempo mínimo (em meses) nesta faixa antes de promoção
   final int? minMonthsAtBelt;
@@ -61,7 +58,6 @@ class Belt extends Equatable {
         secondaryColor,
         order,
         maxDegrees,
-        minClassesForPromotion,
         minMonthsAtBelt,
         hasBlackTip,
         degreeMarkColor,
@@ -70,6 +66,36 @@ class Belt extends Equatable {
 
   @override
   String toString() => 'Belt($name)';
+
+  factory Belt.fromUserGraduation(UserGraduation graduation) {
+    return Belt(
+      id: graduation.beltId,
+      name: graduation.beltId,
+      color: _colorFromId(graduation.beltId).$1,
+      order: 0,
+      maxDegrees: _colorFromId(graduation.beltId).$2, 
+      hasBlackTip: graduation.beltId != 'bjj_black',
+      degreeMarkColor: graduation.beltId == 'bjj_black' ? Colors.black : null,
+      tipColor: graduation.beltId != 'bjj_black' ? Colors.black : Colors.red,
+    );
+  }
+  //TODO mudar para api
+  static (Color,int)_colorFromId(String id) {
+    switch (id) {
+      case 'bjj_white':
+        return (Colors.white, 4);
+      case 'bjj_blue':
+        return (Colors.blue, 4);
+      case 'bjj_purple':
+        return (Colors.purple, 4);
+      case 'bjj_brown':
+        return (Colors.brown, 4);
+      case 'bjj_black':
+        return (Colors.black, 6);
+      default:
+        return (Colors.white, 4);
+    }
+  }
 }
 
 /// Graduação do usuário (faixa + grau atual)
@@ -100,7 +126,7 @@ class UserGraduation extends Equatable {
   /// Retorna se deve mostrar aparadores
   /// - Se tem graus > 0: sempre mostra
   /// - Se graus = 0: usa o valor de hasAparadores (padrão false)
-  bool get showAparadores => degree > 0 || (hasAparadores ?? false);
+  bool get showAparadores => degree > 0 || (hasAparadores ?? false) && beltId == 'bjj_black';
 
   /// Cria uma graduação inicial (faixa branca, sem grau)
   factory UserGraduation.initial(String initialBeltId) {

@@ -709,7 +709,7 @@ class _ModalitiesContent extends StatelessWidget {
                 _buildInfoRow(
                   Icons.military_tech,
                   'Faixas',
-                  '${martialArt.belts.length}',
+                  '${martialArt.belts?.length ?? 0}',
                 ),
               ],
             ),
@@ -868,7 +868,7 @@ class _ModalitiesContent extends StatelessWidget {
                     style: const TextStyle(color: AppColors.textPrimaryDark),
                   ),
                   subtitle: Text(
-                    '${art.belts.length} faixas',
+                    '${art.belts?.length ?? 0} faixas',
                     style: const TextStyle(color: AppColors.textSecondaryDark),
                   ),
                   onTap: () async {

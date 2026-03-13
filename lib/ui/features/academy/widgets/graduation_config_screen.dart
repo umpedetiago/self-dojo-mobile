@@ -74,7 +74,7 @@ class _GraduationConfigContentState extends State<_GraduationConfigContent> {
 
     _useDefault = modality.graduationConfig.useDefaultConfig;
 
-    for (final belt in _martialArt.belts) {
+    for (final belt in _martialArt.belts ?? []) {
       final existingConfig = modality.graduationConfig.getBeltConfig(belt.id);
 
       _beltConfigs[belt.id] = BeltConfigData(
@@ -143,9 +143,9 @@ class _GraduationConfigContentState extends State<_GraduationConfigContent> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      ..._martialArt.belts.skip(1).map((belt) {
+                      ...(_martialArt.belts?.skip(1).map((belt) {
                         return _buildBeltConfigCard(belt);
-                      }),
+                      }) ?? []),
                     ],
                     const SizedBox(height: 20),
                     _buildSaveButton(viewModel),
@@ -230,7 +230,7 @@ class _GraduationConfigContentState extends State<_GraduationConfigContent> {
                   ),
                 ),
                 Text(
-                  '${_martialArt.belts.length} faixas',
+                  '${_martialArt.belts?.length ?? 0} faixas',
                   style: const TextStyle(
                     color: AppColors.textSecondaryDark,
                     fontSize: 13,

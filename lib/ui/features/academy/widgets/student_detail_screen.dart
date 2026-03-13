@@ -1103,9 +1103,7 @@ class _ModalitySection extends StatelessWidget {
     // Promoção de faixa - mostra progresso de aulas
     final targetBelt = nextBelt!;
     final progress = modality.classesAtCurrentBelt /
-        (targetBelt.minClassesForPromotion > 0
-            ? targetBelt.minClassesForPromotion
-            : 1);
+        (targetBelt.maxDegrees > 0 ? targetBelt.maxDegrees : 1);
     final clampedProgress = progress.clamp(0.0, 1.0);
 
     return Column(
@@ -1122,7 +1120,7 @@ class _ModalitySection extends StatelessWidget {
               ),
             ),
             Text(
-              '${modality.classesAtCurrentBelt}/${targetBelt.minClassesForPromotion} aulas',
+              '${modality.classesAtCurrentBelt}/${targetBelt.maxDegrees} aulas',
               style: const TextStyle(
                 color: AppColors.textPrimaryDark,
                 fontWeight: FontWeight.w500,
@@ -1143,17 +1141,6 @@ class _ModalitySection extends StatelessWidget {
             minHeight: 8,
           ),
         ),
-        if (modality.classesUntilPromotion > 0)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              'Faltam ${modality.classesUntilPromotion} aulas',
-              style: TextStyle(
-                color: AppColors.textTertiaryDark,
-                fontSize: 12,
-              ),
-            ),
-          ),
       ],
     );
   }

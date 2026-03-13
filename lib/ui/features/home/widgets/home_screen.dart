@@ -86,7 +86,7 @@ class _HomeContentState extends State<_HomeContent> {
     final profile = profileService.profile;
 
     final martialArt = profile.martialArt;
-    final currentBelt = profile.currentBelt;
+    final currentBelt = profile.graduation;
     final nextBelt = profile.nextBelt;
 
     return Scaffold(
@@ -122,7 +122,7 @@ class _HomeContentState extends State<_HomeContent> {
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                       child: BeltDisplay(
                         martialArt: martialArt,
-                        belt: currentBelt,
+                        belt: Belt.fromUserGraduation(currentBelt!),
                         degree: profile.enrolledModalities.isNotEmpty
                             ? profile.enrolledModalities.first.graduation.degree
                             : profile.graduation?.degree ?? 0,
@@ -169,7 +169,7 @@ class _HomeContentState extends State<_HomeContent> {
                           StatsCard(
                             icon: Icons.trending_up,
                             label: 'Próxima Faixa',
-                            value: '${profile.classesUntilNextBelt} aulas',
+                            value: '${profile.classesUntilNextDegree} aulas',
                             color: _getBeltColor(nextBelt),
                           )
                         else

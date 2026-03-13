@@ -158,13 +158,7 @@ class StudentModalityInfo extends Equatable {
     return martialArt.getNextBelt(current);
   }
 
-  /// Calcula aulas restantes para promoção
-  int get classesUntilPromotion {
-    final next = nextBelt;
-    if (next == null) return 0;
-    final remaining = next.minClassesForPromotion - classesAtCurrentBelt;
-    return remaining > 0 ? remaining : 0;
-  }
+ 
 
   /// Tempo de treino na modalidade
   Duration get trainingTime => DateTime.now().difference(enrolledAt);

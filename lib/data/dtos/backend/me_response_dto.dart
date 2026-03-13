@@ -12,6 +12,14 @@ class BackendMeResponseDto {
     this.academyId,
     this.academyStatus,
     this.joinedAt,
+    this.academyName,
+    this.instructorName,
+    this.weightCategory,
+    this.totalClassesAll,
+    this.classesUntilNextBelt,
+    this.classesUntilNextDegree,
+    this.trainingTimeDays,
+    this.competitionsCount,
     this.createdAt,
   });
 
@@ -29,6 +37,17 @@ class BackendMeResponseDto {
   final String? academyId;
   final String? academyStatus;
   final DateTime? joinedAt;
+
+  /// Dados agregados e de exibição vindos do backend
+  final String? academyName;
+  final String? instructorName;
+  final String? weightCategory;
+
+  final int? totalClassesAll;
+  final int? classesUntilNextBelt;
+  final int? classesUntilNextDegree;
+  final int? trainingTimeDays;
+  final int? competitionsCount;
 
   final DateTime? createdAt;
 
@@ -56,6 +75,14 @@ class BackendMeResponseDto {
       academyId: json['academy_id'] as String?,
       academyStatus: json['academy_status'] as String?,
       joinedAt: DateTime.tryParse((json['joined_at'] as String?) ?? ''),
+      academyName: json['academy_name'] as String?,
+      instructorName: json['instructor_name'] as String?,
+      weightCategory: json['weight_category'] as String?,
+      totalClassesAll: json['total_classes_all'] as int?,
+      classesUntilNextBelt: json['classes_until_next_belt'] as int?,
+      classesUntilNextDegree: json['classes_until_next_degree'] as int?,
+      trainingTimeDays: json['training_time_days'] as int?,
+      competitionsCount: json['competitions_count'] as int?,
       createdAt: DateTime.tryParse((json['createdAt'] as String?) ?? ''),
     );
   }
@@ -75,6 +102,9 @@ class BackendStudentModalityDto {
     this.classesAtCurrentBelt = 0,
     this.enrolledAt,
     this.graduationHistory = const [],
+    this.classesUntilNextBelt,
+    this.classesUntilNextDegree,
+    this.trainingTimeDays,
   });
 
   final String id;
@@ -89,6 +119,11 @@ class BackendStudentModalityDto {
   final int classesAtCurrentBelt;
   final DateTime? enrolledAt;
   final List<BackendGraduationHistoryItemDto> graduationHistory;
+
+  /// Valores já calculados pelo backend (opcionais)
+  final int? classesUntilNextBelt;
+  final int? classesUntilNextDegree;
+  final int? trainingTimeDays;
 
   factory BackendStudentModalityDto.fromJson(Map<String, dynamic> json) {
     final historyRaw = json['graduation_history'];
@@ -114,6 +149,9 @@ class BackendStudentModalityDto {
       classesAtCurrentBelt: (json['classes_at_current_belt'] as int?) ?? 0,
       enrolledAt: DateTime.tryParse((json['enrolled_at'] as String?) ?? ''),
       graduationHistory: history,
+      classesUntilNextBelt: json['classes_until_next_belt'] as int?,
+      classesUntilNextDegree: json['classes_until_next_degree'] as int?,
+      trainingTimeDays: json['training_time_days'] as int?,
     );
   }
 }

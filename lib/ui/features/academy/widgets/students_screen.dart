@@ -453,16 +453,7 @@ class _StudentCard extends StatelessWidget {
                             fontSize: 12,
                           ),
                         ),
-                        if (modality != null &&
-                            modality.classesUntilPromotion > 0) ...[
-                          Text(
-                            ' • ${modality.classesUntilPromotion} para próx. faixa',
-                            style: TextStyle(
-                              color: AppColors.textTertiaryDark,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                        
                       ],
                     ),
                   ],

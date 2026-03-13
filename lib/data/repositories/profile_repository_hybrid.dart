@@ -277,6 +277,9 @@ class ProfileRepositoryHybrid implements ProfileRepository {
             .toList(),
         totalClasses: m.totalClasses,
         enrolledAt: m.enrolledAt ?? DateTime.now(),
+        backendClassesUntilNextBelt: m.classesUntilNextBelt,
+        backendClassesUntilNextDegree: m.classesUntilNextDegree,
+        backendTrainingTimeDays: m.trainingTimeDays,
         academyModality: academyModality,
       );
     }).toList();
@@ -305,7 +308,16 @@ class ProfileRepositoryHybrid implements ProfileRepository {
         ? enrolledModalities.first
         : null;
 
-    final totalClasses = primaryModality?.totalClasses ?? 0;
+    final totalClasses =
+        dto.totalClassesAll ?? primaryModality?.totalClasses ?? 0;
+
+    // Deriva uma data de início aproximada a partir do total de dias de treino,
+    // se o backend fornecer esse dado agregado.
+    DateTime? derivedStartDate;
+    if (dto.trainingTimeDays != null && dto.trainingTimeDays! > 0) {
+      derivedStartDate =
+          DateTime.now().subtract(Duration(days: dto.trainingTimeDays!));
+    }
 
     return UserProfile(
       id: dto.id,
@@ -330,6 +342,10 @@ class ProfileRepositoryHybrid implements ProfileRepository {
       graduationHistory:
           primaryModality?.graduationHistory ?? const [],
       totalClasses: totalClasses,
+      academyName: dto.academyName,
+      instructorName: dto.instructorName,
+      weightCategory: dto.weightCategory,
+      startDate: derivedStartDate,
       createdAt: dto.createdAt,
     );
   }
